@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AssemblyVersion>1.0.0</AssemblyVersion>
+        <FileVersion>1.0.0</FileVersion>
+        <Title>Aegis</Title>
+        <Description>Aegis is a robust and flexible .NET licensing library that simplifies the implementation of various licensing models for your applications. It offers strong security features, both online and offline validation, and easy integration with your existing projects. Securely manage your software licenses with Aegis.</Description>
+        <Copyright>Copyright (c) 2024 LSXPrime</Copyright>
+        <PackageProjectUrl>https://github.com/LSXPrime/Aegis</PackageProjectUrl>
+        <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+        <RepositoryUrl>https://github.com/LSXPrime/Aegis</RepositoryUrl>
+        <RepositoryType>Github</RepositoryType>
+        <PackageIcon>Aegis.png</PackageIcon>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageTags>license, key, licensing, protect, shield</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="DeviceId" Version="6.7.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Aegis.png">
+            <Pack>True</Pack>
+            <PackagePath></PackagePath>
+        </None>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+        <None Include="..\..\LICENSE.md" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+
+</Project>
