@@ -14,18 +14,18 @@ namespace Aegis.Server.Tests.Services;
 
 public class LicenseServiceTests
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly AegisDbContext _dbContext;
     private readonly LicenseService _licenseService;
 
     public LicenseServiceTests()
     {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+        var options = new DbContextOptionsBuilder<AegisDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
             .Options;
-        
-        _dbContext = new ApplicationDbContext(options);
+
+        _dbContext = new AegisDbContext(options);
         _licenseService = new LicenseService(_dbContext);
-        
+
         // Initialize test data
         SeedDatabase();
         LoadSecretKeys();
@@ -35,18 +35,76 @@ public class LicenseServiceTests
     {
         _dbContext.Products.Add(new Product { ProductId = Guid.NewGuid(), ProductName = "Test Product" });
         _dbContext.Features.Add(new Feature { FeatureId = Guid.NewGuid(), FeatureName = "Feature 1" });
-        _dbContext.Features.Add(new Feature { FeatureId = Guid.NewGuid(), FeatureName = "Feature 2" }); 
+        _dbContext.Features.Add(new Feature { FeatureId = Guid.NewGuid(), FeatureName = "Feature 2" });
         _dbContext.SaveChanges();
-        _dbContext.LicenseFeatures.Add(new LicenseFeature() { ProductId = _dbContext.Products.First().ProductId, FeatureId = _dbContext.Features.First().FeatureId });
-        _dbContext.LicenseFeatures.Add(new LicenseFeature() { ProductId = _dbContext.Products.First().ProductId, FeatureId = _dbContext.Features.Last().FeatureId });
+        _dbContext.LicenseFeatures.Add(new LicenseFeature
+            { ProductId = _dbContext.Products.First().ProductId, FeatureId = _dbContext.Features.First().FeatureId });
+        _dbContext.LicenseFeatures.Add(new LicenseFeature
+            { ProductId = _dbContext.Products.First().ProductId, FeatureId = _dbContext.Features.Last().FeatureId });
         _dbContext.SaveChanges();
     }
-    
+
     private void LoadSecretKeys()
     {
         var secretPath = Path.GetTempFileName();
         LicenseUtils.GenerateLicensingSecrets("MySecretTestKey", secretPath, "12345678-90ab-cdef-ghij-klmnopqrst");
         LicenseUtils.LoadLicensingSecrets("MySecretTestKey", secretPath);
+    }
+
+    // Helper Methods for Tests
+
+    private License CreateAndSaveLicense(LicenseType licenseType, DateTime? expirationDate = null,
+        string? hardwareId = null, int? maxActivations = null)
+    {
+        var productId = _dbContext.Products.First().ProductId;
+        var licenseFeature = _dbContext.LicenseFeatures.First();
+        var license = new License
+        {
+            Type = licenseType,
+            ProductId = productId,
+            IssuedTo = "Test User",
+            HardwareId = hardwareId,
+            MaxActiveUsersCount = maxActivations,
+            IssuedOn = DateTime.UtcNow,
+            ExpirationDate = expirationDate,
+            SubscriptionExpiryDate = licenseType == LicenseType.Subscription ? expirationDate : null,
+            LicenseFeatures = [licenseFeature]
+        };
+
+        _dbContext.Licenses.Add(license);
+        _dbContext.SaveChanges();
+
+        return license;
+    }
+
+    private byte[] GenerateLicenseFile(License license)
+    {
+        var baseLicense = new BaseLicense
+        {
+            LicenseId = license.LicenseId,
+            LicenseKey = license.LicenseKey,
+            Type = license.Type,
+            IssuedOn = license.IssuedOn,
+            ExpirationDate = license.ExpirationDate,
+            Features = license.LicenseFeatures.ToDictionary(lf => lf.Feature.FeatureName, lf => lf.IsEnabled),
+            Issuer = license.Issuer
+        };
+        return license.Type switch
+        {
+            LicenseType.Standard => LicenseManager.SaveLicense(new StandardLicense(baseLicense, license.IssuedTo)),
+            LicenseType.Trial => LicenseManager.SaveLicense(new TrialLicense(baseLicense,
+                license.ExpirationDate!.Value - DateTime.UtcNow)),
+            LicenseType.NodeLocked => LicenseManager.SaveLicense(
+                new NodeLockedLicense(baseLicense, license.HardwareId!)),
+            LicenseType.Subscription => LicenseManager.SaveLicense(new SubscriptionLicense(baseLicense,
+                license.IssuedTo,
+                license.ExpirationDate!.Value - DateTime.UtcNow)),
+            LicenseType.Floating => LicenseManager.SaveLicense(new FloatingLicense(baseLicense, license.IssuedTo,
+                license.MaxActiveUsersCount!.Value)),
+            LicenseType.Concurrent => LicenseManager.SaveLicense(new ConcurrentLicense(baseLicense, license.IssuedTo,
+                license.MaxActiveUsersCount!.Value)),
+            _ => throw new InvalidLicenseFormatException("Invalid license type.")
+        };
     }
 
     #region GenerateLicenseAsync Tests
@@ -76,7 +134,7 @@ public class LicenseServiceTests
         var license = await LicenseManager.LoadLicenseAsync(licenseFile);
         Assert.NotNull(license);
         Assert.Equal(request.LicenseType, license.Type);
-        Assert.Equal(request.ExpirationDate!.Value, license.ExpirationDate); 
+        Assert.Equal(request.ExpirationDate!.Value, license.ExpirationDate);
     }
 
     [Fact]
@@ -118,7 +176,7 @@ public class LicenseServiceTests
             await _licenseService.GenerateLicenseAsync(request);
         });
     }
-    
+
     [Fact]
     public async Task GenerateLicenseAsync_ExpirationDateInThePast_ThrowsBadRequestException()
     {
@@ -148,11 +206,11 @@ public class LicenseServiceTests
     {
         // Arrange
         var license = CreateAndSaveLicense(LicenseType.Standard);
-        var licenseFile = GenerateLicenseFile(license); 
+        var licenseFile = GenerateLicenseFile(license);
 
         // Act
         var result = await _licenseService.ValidateLicenseAsync(license.LicenseKey, licenseFile);
-        
+
         // Assert
         Assert.True(result.IsValid);
         Assert.NotNull(result.License);
@@ -174,7 +232,7 @@ public class LicenseServiceTests
         Assert.Null(result.License);
         Assert.IsType<NotFoundException>(result.Exception);
     }
-    
+
     [Fact]
     public async Task ValidateLicenseAsync_ExpiredLicense_ReturnsInvalidResult()
     {
@@ -188,7 +246,7 @@ public class LicenseServiceTests
         // Assert
         Assert.False(result.IsValid);
         Assert.Null(result.License);
-        Assert.IsType<ExpiredLicenseException>(result.Exception); 
+        Assert.IsType<ExpiredLicenseException>(result.Exception);
     }
 
     [Fact]
@@ -196,7 +254,7 @@ public class LicenseServiceTests
     {
         // Arrange
         var license = CreateAndSaveLicense(LicenseType.Standard);
-        license.Status = LicenseStatus.Revoked; 
+        license.Status = LicenseStatus.Revoked;
         _dbContext.Licenses.Update(license);
         await _dbContext.SaveChangesAsync();
         var licenseFile = GenerateLicenseFile(license);
@@ -209,7 +267,7 @@ public class LicenseServiceTests
         Assert.Null(result.License);
         Assert.IsType<LicenseValidationException>(result.Exception);
     }
-    
+
     [Fact]
     public async Task ValidateLicenseAsync_TamperedLicense_ThrowsException()
     {
@@ -217,16 +275,16 @@ public class LicenseServiceTests
         var license = CreateAndSaveLicense(LicenseType.Standard);
         var licenseFile = GenerateLicenseFile(license);
         licenseFile[0] = (byte)'X';
-        
+
         // Act
         var result = await _licenseService.ValidateLicenseAsync(license.LicenseKey, licenseFile);
-        
+
         // Assert
         Assert.False(result.IsValid);
         Assert.Null(result.License);
         Assert.IsType<InvalidLicenseSignatureException>(result.Exception);
     }
-    
+
     [Fact]
     public async Task ValidateLicenseAsync_NodeLockedLicense_HardwareMismatch_ThrowException()
     {
@@ -238,7 +296,7 @@ public class LicenseServiceTests
 
         // Act
         var result = await _licenseService.ValidateLicenseAsync(license.LicenseKey, licenseFile, validationParams);
-        
+
         // Assert
         Assert.False(result.IsValid);
         Assert.Null(result.License);
@@ -282,32 +340,32 @@ public class LicenseServiceTests
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
         Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
     }
-    
+
     [Fact]
     public async Task ActivateLicenseAsync_NodeLockedLicense_ReturnsSuccessfulResult()
     {
         // Arrange
         const string hardwareId = "12345678";
-        var license = CreateAndSaveLicense(LicenseType.NodeLocked); 
+        var license = CreateAndSaveLicense(LicenseType.NodeLocked);
 
         // Act
         var result = await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId);
 
         // Assert
         Assert.True(result.IsSuccessful);
-        Assert.Null(result.Exception); 
+        Assert.Null(result.Exception);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
         Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
         Assert.Equal(hardwareId, updatedLicense.HardwareId);
     }
-    
+
     [Fact]
     public async Task ActivateLicenseAsync_ConcurrentLicense_BelowLimit_ReturnsSuccessfulResult()
     {
         // Arrange
         const string hardwareId = "12345678";
-        var license = CreateAndSaveLicense(LicenseType.Concurrent, maxActivations: 5); 
+        var license = CreateAndSaveLicense(LicenseType.Concurrent, maxActivations: 5);
 
         // Act
         var result = await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId);
@@ -322,9 +380,9 @@ public class LicenseServiceTests
 
         var activation = await _dbContext.Activations.FirstOrDefaultAsync(a => a.LicenseId == license.LicenseId);
         Assert.NotNull(activation);
-        Assert.Equal(hardwareId, activation.MachineId); 
+        Assert.Equal(hardwareId, activation.MachineId);
     }
-    
+
     [Fact]
     public async Task ActivateLicenseAsync_ConcurrentLicense_AtLimit_ReturnsUnsuccessfulResult()
     {
@@ -341,9 +399,9 @@ public class LicenseServiceTests
         Assert.IsType<MaximumActivationsReachedException>(result.Exception);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(1, updatedLicense!.ActiveUsersCount); 
+        Assert.Equal(1, updatedLicense!.ActiveUsersCount);
     }
-    
+
     [Fact]
     public async Task ActivateLicenseAsync_FloatingLicense_BelowLimit_ReturnsSuccessfulResult()
     {
@@ -373,7 +431,7 @@ public class LicenseServiceTests
         // Arrange
         const string hardwareId = "12345678";
         var license = CreateAndSaveLicense(LicenseType.Floating, maxActivations: 1);
-        await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId); 
+        await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId);
 
         // Act
         var result = await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId);
@@ -414,7 +472,7 @@ public class LicenseServiceTests
 
         // Assert
         Assert.False(result.IsSuccessful);
-        Assert.IsType<ExpiredLicenseException>(result.Exception); 
+        Assert.IsType<ExpiredLicenseException>(result.Exception);
     }
 
     [Fact]
@@ -425,7 +483,7 @@ public class LicenseServiceTests
 
         // Assert
         Assert.False(result.IsSuccessful);
-        Assert.IsType<NotFoundException>(result.Exception); 
+        Assert.IsType<NotFoundException>(result.Exception);
     }
 
     #endregion
@@ -446,7 +504,7 @@ public class LicenseServiceTests
         Assert.Null(result.Exception);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Revoked, updatedLicense!.Status); 
+        Assert.Equal(LicenseStatus.Revoked, updatedLicense!.Status);
     }
 
     [Fact]
@@ -482,9 +540,9 @@ public class LicenseServiceTests
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
         Assert.Equal(LicenseStatus.Revoked, updatedLicense!.Status);
-        Assert.Null(updatedLicense.HardwareId); 
+        Assert.Null(updatedLicense.HardwareId);
     }
-    
+
     [Fact]
     public async Task RevokeLicenseAsync_ConcurrentLicense_ReturnsSuccessfulResult()
     {
@@ -501,10 +559,10 @@ public class LicenseServiceTests
         Assert.Null(result.Exception);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(0, updatedLicense!.ActiveUsersCount); 
+        Assert.Equal(0, updatedLicense!.ActiveUsersCount);
 
         var activation = await _dbContext.Activations.FirstOrDefaultAsync(a => a.LicenseId == license.LicenseId);
-        Assert.Null(activation); 
+        Assert.Null(activation);
     }
 
     [Fact]
@@ -513,7 +571,7 @@ public class LicenseServiceTests
         // Arrange
         const string hardwareId = "12345678";
         var license = CreateAndSaveLicense(LicenseType.Floating, maxActivations: 5);
-        await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId); 
+        await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId);
 
         // Act
         var result = await _licenseService.RevokeLicenseAsync(license.LicenseKey, hardwareId);
@@ -526,9 +584,9 @@ public class LicenseServiceTests
         Assert.Equal(0, updatedLicense!.ActiveUsersCount);
 
         var activation = await _dbContext.Activations.FirstOrDefaultAsync(a => a.LicenseId == license.LicenseId);
-        Assert.Null(activation); 
+        Assert.Null(activation);
     }
-    
+
     [Fact]
     public async Task RevokeLicenseAsync_SubscriptionLicense_ReturnsSuccessfulResult()
     {
@@ -545,7 +603,7 @@ public class LicenseServiceTests
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
         Assert.Equal(LicenseStatus.Revoked, updatedLicense!.Status);
     }
-    
+
     [Fact]
     public async Task RevokeLicenseAsync_InvalidLicenseKey_ReturnsUnsuccessfulResult()
     {
@@ -554,12 +612,13 @@ public class LicenseServiceTests
 
         // Assert
         Assert.False(result.IsSuccessful);
-        Assert.IsType<NotFoundException>(result.Exception); 
+        Assert.IsType<NotFoundException>(result.Exception);
     }
 
     #endregion
 
     #region DisconnectConcurrentLicenseUser Tests
+
     // ... (Implementation in progress)
 
     [Fact]
@@ -618,13 +677,13 @@ public class LicenseServiceTests
         Assert.Equal("License renewed successfully.", result.Message);
         Assert.NotNull(result.LicenseFile);
     }
-    
+
     [Fact]
     public async Task RenewLicenseAsync_NonSubscriptionLicense_ReturnsUnsuccessfulResult()
     {
         // Arrange
         var license = CreateAndSaveLicense(LicenseType.Standard);
-        var newExpirationDate = DateTime.UtcNow.AddDays(60); 
+        var newExpirationDate = DateTime.UtcNow.AddDays(60);
 
         // Act
         var result = await _licenseService.RenewLicenseAsync(license.LicenseKey, newExpirationDate);
@@ -649,9 +708,9 @@ public class LicenseServiceTests
 
         // Assert
         Assert.False(result.IsSuccessful);
-        Assert.Equal("License revoked.", result.Message); 
+        Assert.Equal("License revoked.", result.Message);
     }
-    
+
     [Fact]
     public async Task RenewLicenseAsync_InvalidExpirationDate_ReturnsUnsuccessfulResult()
     {
@@ -664,7 +723,8 @@ public class LicenseServiceTests
 
         // Assert
         Assert.False(result.IsSuccessful);
-        Assert.Equal("New expiration date cannot be in the past or before the current expiration date.", result.Message);
+        Assert.Equal("New expiration date cannot be in the past or before the current expiration date.",
+            result.Message);
     }
 
     #endregion
@@ -678,7 +738,7 @@ public class LicenseServiceTests
         var license = CreateAndSaveLicense(LicenseType.Concurrent, maxActivations: 5);
         const string hardwareId = "12345678";
         await _licenseService.ActivateLicenseAsync(license.LicenseKey, hardwareId);
-        var activation = await _dbContext.Activations.FirstAsync(a => a.LicenseId == license.LicenseId); 
+        var activation = await _dbContext.Activations.FirstAsync(a => a.LicenseId == license.LicenseId);
         var initialHeartbeat = activation.LastHeartbeat;
         await Task.Delay(100);
 
@@ -703,61 +763,8 @@ public class LicenseServiceTests
         var result = await _licenseService.HeartbeatAsync(licenseKey, hardwareId);
 
         // Assert
-        Assert.False(result); 
+        Assert.False(result);
     }
 
     #endregion
-
-    // Helper Methods for Tests
-
-    private License CreateAndSaveLicense(LicenseType licenseType, DateTime? expirationDate = null, string? hardwareId = null, int? maxActivations = null)
-    {
-        var productId = _dbContext.Products.First().ProductId;
-        var licenseFeature = _dbContext.LicenseFeatures.First();
-        var license = new License
-        {
-            Type = licenseType,
-            ProductId = productId,
-            IssuedTo = "Test User",
-            HardwareId = hardwareId,
-            MaxActiveUsersCount = maxActivations,
-            IssuedOn = DateTime.UtcNow,
-            ExpirationDate = expirationDate,
-            SubscriptionExpiryDate = licenseType == LicenseType.Subscription ? expirationDate : null,
-            LicenseFeatures = [licenseFeature]
-        };
-
-        _dbContext.Licenses.Add(license);
-        _dbContext.SaveChanges();
-        
-        return license; 
-    }
-
-    private byte[] GenerateLicenseFile(License license)
-    {
-        var baseLicense = new BaseLicense
-        {
-            LicenseId = license.LicenseId,
-            LicenseKey = license.LicenseKey,
-            Type = license.Type,
-            IssuedOn = license.IssuedOn,
-            ExpirationDate = license.ExpirationDate,
-            Features = license.LicenseFeatures.ToDictionary(lf => lf.Feature.FeatureName, lf => lf.IsEnabled),
-            Issuer = license.Issuer
-        };
-        return license.Type switch
-        {
-            LicenseType.Standard => LicenseManager.SaveLicense(new StandardLicense(baseLicense, license.IssuedTo)),
-            LicenseType.Trial => LicenseManager.SaveLicense(new TrialLicense(baseLicense,
-                license.ExpirationDate!.Value - DateTime.UtcNow)),
-            LicenseType.NodeLocked => LicenseManager.SaveLicense(new NodeLockedLicense(baseLicense, license.HardwareId!)),
-            LicenseType.Subscription => LicenseManager.SaveLicense(new SubscriptionLicense(baseLicense, license.IssuedTo,
-                license.ExpirationDate!.Value - DateTime.UtcNow)),
-            LicenseType.Floating => LicenseManager.SaveLicense(new FloatingLicense(baseLicense, license.IssuedTo,
-                license.MaxActiveUsersCount!.Value)),
-            LicenseType.Concurrent => LicenseManager.SaveLicense(new ConcurrentLicense(baseLicense, license.IssuedTo,
-                license.MaxActiveUsersCount!.Value)),
-            _ => throw new InvalidLicenseFormatException("Invalid license type.")
-        };
-    }
 }

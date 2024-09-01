@@ -6,24 +6,19 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(ConcurrentLicense), "Concurrent")]
 public class ConcurrentLicense : BaseLicense
 {
-    [JsonInclude]
-    public string UserName { get; protected set; }
-    [JsonInclude]
-    public int MaxActiveUsersCount { get; protected set; }
-    
     [JsonConstructor]
     protected ConcurrentLicense()
     {
         Type = LicenseType.Concurrent;
     }
-    
+
     public ConcurrentLicense(string userName, int maxActiveUsersCount)
     {
         UserName = userName;
         MaxActiveUsersCount = maxActiveUsersCount;
         Type = LicenseType.Concurrent;
     }
-    
+
     public ConcurrentLicense(BaseLicense license, string userName, int maxActiveUsersCount)
     {
         UserName = userName;
@@ -37,4 +32,8 @@ public class ConcurrentLicense : BaseLicense
         Type = license.Type;
         IssuedOn = license.IssuedOn;
     }
+
+    [JsonInclude] public string UserName { get; protected set; }
+
+    [JsonInclude] public int MaxActiveUsersCount { get; protected set; }
 }

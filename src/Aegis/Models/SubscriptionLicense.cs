@@ -6,19 +6,12 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(SubscriptionLicense), "Subscription")]
 public class SubscriptionLicense : BaseLicense
 {
-    [JsonInclude]
-    public string UserName { get; protected internal set; }
-    [JsonInclude]
-    public DateTime SubscriptionStartDate { get; protected internal set; }
-    [JsonInclude]
-    public TimeSpan SubscriptionDuration { get; protected internal set; }
-
     [JsonConstructor]
     protected SubscriptionLicense()
     {
         Type = LicenseType.Standard;
     }
-    
+
     public SubscriptionLicense(string userName, TimeSpan subscriptionDuration)
     {
         UserName = userName;
@@ -42,4 +35,10 @@ public class SubscriptionLicense : BaseLicense
         Type = license.Type;
         IssuedOn = license.IssuedOn;
     }
+
+    [JsonInclude] public string UserName { get; protected internal set; }
+
+    [JsonInclude] public DateTime SubscriptionStartDate { get; protected internal set; }
+
+    [JsonInclude] public TimeSpan SubscriptionDuration { get; protected internal set; }
 }

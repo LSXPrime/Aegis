@@ -6,7 +6,7 @@ namespace Aegis;
 public static class LicenseBuilder
 {
     /// <summary>
-    /// Sets the expiry date for the license.
+    ///     Sets the expiry date for the license.
     /// </summary>
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="expiryDate">The expiry date to set.</param>
@@ -16,13 +16,13 @@ public static class LicenseBuilder
     {
         if (baseLicense is TrialLicense)
             throw new LicenseGenerationException("Trial licenses have a predefined expiry date.");
-        
+
         baseLicense.ExpirationDate = expiryDate;
         return baseLicense;
     }
-    
+
     /// <summary>
-    /// Adds or updates a feature flag for the license.
+    ///     Adds or updates a feature flag for the license.
     /// </summary>
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="featureName">The name of the feature.</param>
@@ -36,7 +36,7 @@ public static class LicenseBuilder
     }
 
     /// <summary>
-    /// Sets the feature flags for the license.
+    ///     Sets the feature flags for the license.
     /// </summary>
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="features">A dictionary of feature names and their enabled status.</param>
@@ -48,7 +48,7 @@ public static class LicenseBuilder
     }
 
     /// <summary>
-    /// Sets the issuer for the license.
+    ///     Sets the issuer for the license.
     /// </summary>
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="issuer">The issuer to set.</param>
@@ -58,9 +58,9 @@ public static class LicenseBuilder
         baseLicense.Issuer = issuer;
         return baseLicense;
     }
-    
+
     /// <summary>
-    /// Sets the license key for the license.
+    ///     Sets the license key for the license.
     /// </summary>
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="licenseKey">The license key to set.</param>
@@ -70,9 +70,9 @@ public static class LicenseBuilder
         baseLicense.LicenseKey = licenseKey;
         return baseLicense;
     }
-    
+
     /// <summary>
-    /// Saves the license to a file.
+    ///     Saves the license to a file.
     /// </summary>
     /// <param name="baseLicense">The license object to save.</param>
     /// <param name="filePath">The path to the file to save the license to.</param>

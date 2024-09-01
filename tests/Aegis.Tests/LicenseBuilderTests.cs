@@ -20,11 +20,12 @@ public class LicenseBuilderTests
             LicenseType.Concurrent => new ConcurrentLicense("TestUser", 5),
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
-        
+
         if (license.Type != LicenseType.Trial)
             license.WithExpiryDate(DateTime.UtcNow.AddDays(10));
-        
-        return license.WithIssuer("Aegis Software").WithFeatures(new Dictionary<string, bool>() { { "Feature1", true }, { "Feature2", false } });
+
+        return license.WithIssuer("Aegis Software").WithFeatures(new Dictionary<string, bool>
+            { { "Feature1", true }, { "Feature2", false } });
     }
 
     [Fact]
@@ -40,7 +41,7 @@ public class LicenseBuilderTests
         // Assert
         Assert.Equal(expectedExpiryDate, license.ExpirationDate!.Value.Date);
     }
-    
+
     [Fact]
     public void WithExpiryDate_ThrowsExceptionForTrialLicense()
     {

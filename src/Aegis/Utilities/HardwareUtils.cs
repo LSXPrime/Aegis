@@ -5,7 +5,7 @@ namespace Aegis.Utilities;
 public static class HardwareUtils
 {
     /// <summary>
-    /// Gets a unique hardware identifier for the current machine.
+    ///     Gets a unique hardware identifier for the current machine.
     /// </summary>
     /// <returns>A string representing the hardware identifier.</returns>
     public static string GetHardwareId()
@@ -17,9 +17,9 @@ public static class HardwareUtils
             .AddMacAddress(true, true)
             .ToString();
     }
-    
+
     /// <summary>
-    /// Validates a hardware identifier against the current machine's hardware identifier.
+    ///     Validates a hardware identifier against the current machine's hardware identifier.
     /// </summary>
     /// <param name="hardwareId">The hardware identifier to validate.</param>
     /// <returns>True if the hardware identifier matches, false otherwise.</returns>

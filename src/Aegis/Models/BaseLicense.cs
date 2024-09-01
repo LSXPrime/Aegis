@@ -4,6 +4,8 @@ using Aegis.Enums;
 
 [assembly: InternalsVisibleTo("Aegis.Server")]
 [assembly: InternalsVisibleTo("Aegis.Server.Tests")]
+[assembly: InternalsVisibleTo("Aegis.Server.AspNetCore.Tests")]
+
 namespace Aegis.Models;
 
 [JsonDerivedType(typeof(StandardLicense), "Standard")]
@@ -14,18 +16,17 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(ConcurrentLicense), "Concurrent")]
 public class BaseLicense
 {
-    [JsonInclude]
-    public Guid LicenseId { get; internal init; } = Guid.NewGuid();
-    [JsonInclude]
-    public string LicenseKey { get; internal set; } = Guid.NewGuid().ToString("D").ToUpper();
-    [JsonInclude]
-    public LicenseType Type { get; init; }
-    [JsonInclude]
-    public DateTime IssuedOn { get; internal init; } = DateTime.UtcNow;
-    [JsonInclude]
-    public DateTime? ExpirationDate { get; protected internal set; }
-    [JsonInclude]
-    public Dictionary<string, bool> Features { get; protected internal set; } = new();
-    [JsonInclude]
-    public string Issuer { get; protected internal set; } = string.Empty;
+    [JsonInclude] public Guid LicenseId { get; internal init; } = Guid.NewGuid();
+
+    [JsonInclude] public string LicenseKey { get; internal set; } = Guid.NewGuid().ToString("D").ToUpper();
+
+    [JsonInclude] public LicenseType Type { get; init; }
+
+    [JsonInclude] public DateTime IssuedOn { get; internal init; } = DateTime.UtcNow;
+
+    [JsonInclude] public DateTime? ExpirationDate { get; protected internal set; }
+
+    [JsonInclude] public Dictionary<string, bool> Features { get; protected internal set; } = new();
+
+    [JsonInclude] public string Issuer { get; protected internal set; } = string.Empty;
 }

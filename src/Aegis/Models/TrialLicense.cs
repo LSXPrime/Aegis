@@ -6,9 +6,6 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(TrialLicense), "Trial")]
 public class TrialLicense : BaseLicense
 {
-    [JsonInclude]
-    public TimeSpan TrialPeriod { get; protected init; }
-    
     [JsonConstructor]
     protected TrialLicense()
     {
@@ -21,7 +18,7 @@ public class TrialLicense : BaseLicense
         ExpirationDate = DateTime.UtcNow.Add(trialPeriod);
         Type = LicenseType.Trial;
     }
-    
+
     public TrialLicense(BaseLicense license, TimeSpan trialPeriod)
     {
         TrialPeriod = trialPeriod;
@@ -34,4 +31,6 @@ public class TrialLicense : BaseLicense
         Type = license.Type;
         IssuedOn = license.IssuedOn;
     }
+
+    [JsonInclude] public TimeSpan TrialPeriod { get; protected init; }
 }

@@ -49,7 +49,7 @@ public class LicenseGeneratorTests
         // Assert
         Assert.NotNull(license);
         Assert.IsType<NodeLockedLicense>(license);
-        Assert.NotNull(license.HardwareId); 
+        Assert.NotNull(license.HardwareId);
         Assert.Equal(LicenseType.NodeLocked, license.Type);
         Assert.Equal(DateTime.UtcNow.Date, license.IssuedOn.Date);
     }
@@ -66,7 +66,7 @@ public class LicenseGeneratorTests
         // Assert
         Assert.NotNull(license);
         Assert.IsType<NodeLockedLicense>(license);
-        Assert.Equal(hardwareId, license.HardwareId); 
+        Assert.Equal(hardwareId, license.HardwareId);
         Assert.Equal(LicenseType.NodeLocked, license.Type);
         Assert.Equal(DateTime.UtcNow.Date, license.IssuedOn.Date);
     }
@@ -109,7 +109,7 @@ public class LicenseGeneratorTests
         Assert.Equal(LicenseType.Floating, license.Type);
         Assert.Equal(DateTime.UtcNow.Date, license.IssuedOn.Date);
     }
-    
+
     [Fact]
     public void GenerateConcurrentLicense_CreatesValidLicense()
     {

@@ -13,13 +13,12 @@ public static class LicenseUtils
     private static readonly object Lock = new();
 
     /// <summary>
-    /// Gets the licensing secrets. This method should only be accessed from the Aegis assembly.
+    ///     Gets the licensing secrets. This method should only be accessed from the Aegis assembly.
     /// </summary>
     /// <returns>The licensing secrets.</returns>
     internal static LicensingSecrets GetLicensingSecrets()
     {
         if (_licenseKeys == null)
-        {
             lock (Lock)
             {
                 var config = new ConfigurationBuilder()
@@ -28,13 +27,12 @@ public static class LicenseUtils
 
                 _licenseKeys = LoadLicensingSecrets(config.GetSection("LicensingSecrets"));
             }
-        }
 
         return _licenseKeys;
     }
 
     /// <summary>
-    /// Loads the licensing secrets from a configuration section.
+    ///     Loads the licensing secrets from a configuration section.
     /// </summary>
     /// <param name="config">The configuration section.</param>
     /// <returns>The licensing secrets.</returns>
@@ -52,7 +50,7 @@ public static class LicenseUtils
     }
 
     /// <summary>
-    /// Loads the encrypted licensing secrets from a file.
+    ///     Loads the encrypted licensing secrets from a file.
     /// </summary>
     /// <param name="secretKey">The secret key used to encrypt the secrets.</param>
     /// <param name="path">The path to the file containing the encrypted secrets.</param>
@@ -83,7 +81,7 @@ public static class LicenseUtils
     }
 
     /// <summary>
-    /// Generates and saves the licensing secrets to a file.
+    ///     Generates and saves the licensing secrets to a file.
     /// </summary>
     /// <param name="key">The secret key to use for encryption.</param>
     /// <param name="path">The path to the file where the secrets will be saved.</param>

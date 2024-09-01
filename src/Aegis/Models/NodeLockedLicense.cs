@@ -6,9 +6,6 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(NodeLockedLicense), "NodeLocked")]
 public class NodeLockedLicense : BaseLicense
 {
-    [JsonInclude]
-    public string HardwareId { get; protected internal set; }
-    
     [JsonConstructor]
     public NodeLockedLicense()
     {
@@ -33,4 +30,6 @@ public class NodeLockedLicense : BaseLicense
         Type = license.Type;
         IssuedOn = license.IssuedOn;
     }
+
+    [JsonInclude] public string HardwareId { get; protected internal set; }
 }

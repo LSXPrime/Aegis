@@ -14,28 +14,33 @@ public class LicenseValidatorTests
         return rsa;
     }
 
-    private static (byte[] EncryptedLicenseData, byte[] Signature) GenerateEncryptedLicenseData(BaseLicense license, string? privateKey = null)
+    private static (byte[] EncryptedLicenseData, byte[] Signature) GenerateEncryptedLicenseData(BaseLicense license,
+        string? privateKey = null)
     {
         var licenseData = JsonSerializer.SerializeToUtf8Bytes(license);
 
-        var encryptedLicenseData = SecurityUtils.EncryptData(licenseData, privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
-        var signature = SecurityUtils.SignData(encryptedLicenseData, privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
+        var encryptedLicenseData =
+            SecurityUtils.EncryptData(licenseData, privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
+        var signature = SecurityUtils.SignData(encryptedLicenseData,
+            privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
 
         return (encryptedLicenseData, signature);
     }
-        
+
     private static bool VerifySignatureAndDecrypt(byte[] encryptedLicenseData, byte[] signature, out object? license)
     {
         license = null;
-        if (!SecurityUtils.VerifySignature(encryptedLicenseData, signature, LicenseUtils.GetLicensingSecrets().PublicKey))
+        if (!SecurityUtils.VerifySignature(encryptedLicenseData, signature,
+                LicenseUtils.GetLicensingSecrets().PublicKey))
             return false;
 
-        var decryptedData = SecurityUtils.DecryptData(encryptedLicenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
+        var decryptedData =
+            SecurityUtils.DecryptData(encryptedLicenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
         license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
 
         return license != null;
     }
-    
+
     private void LoadSecretKeys()
     {
         var secretPath = Path.GetTempFileName();
@@ -235,7 +240,7 @@ public class LicenseValidatorTests
         // Assert
         Assert.False(isValid);
     }
-        
+
     [Fact]
     public void ValidateSubscriptionLicense_ReturnsTrue_ForValidLicense()
     {
@@ -343,7 +348,7 @@ public class LicenseValidatorTests
         var incorrectPrivateKey = rsa.ToXmlString(true);
         var license = GenerateStandardLicense();
         var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license, incorrectPrivateKey);
-        
+
 
         // Act
         var isValid = VerifySignatureAndDecrypt(encryptedLicenseData, signature,

@@ -6,7 +6,7 @@ namespace Aegis.Utilities;
 public static class SecurityUtils
 {
     /// <summary>
-    /// Encrypts data using AES encryption.
+    ///     Encrypts data using AES encryption.
     /// </summary>
     /// <param name="data">The data to encrypt.</param>
     /// <param name="key">The encryption key.</param>
@@ -16,7 +16,7 @@ public static class SecurityUtils
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(key);
-        
+
         using var aes = Aes.Create();
         aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(key));
         aes.IV = new byte[aes.BlockSize / 8];
@@ -32,7 +32,7 @@ public static class SecurityUtils
     }
 
     /// <summary>
-    /// Decrypts data using AES decryption.
+    ///     Decrypts data using AES decryption.
     /// </summary>
     /// <param name="data">The data to decrypt.</param>
     /// <param name="key">The decryption key.</param>
@@ -58,7 +58,7 @@ public static class SecurityUtils
     }
 
     /// <summary>
-    /// Signs data using RSA signature.
+    ///     Signs data using RSA signature.
     /// </summary>
     /// <param name="data">The data to sign.</param>
     /// <param name="privateKey">The private key for signing.</param>
@@ -71,7 +71,7 @@ public static class SecurityUtils
     }
 
     /// <summary>
-    /// Verifies the signature of data using RSA signature.
+    ///     Verifies the signature of data using RSA signature.
     /// </summary>
     /// <param name="data">The data to verify.</param>
     /// <param name="signature">The signature to verify.</param>
@@ -86,7 +86,7 @@ public static class SecurityUtils
     }
 
     /// <summary>
-    /// Calculates the SHA256 checksum of data.
+    ///     Calculates the SHA256 checksum of data.
     /// </summary>
     /// <param name="data">The data to calculate the checksum for.</param>
     /// <returns>The checksum as a base64 encoded string.</returns>
@@ -94,13 +94,13 @@ public static class SecurityUtils
     public static string CalculateChecksum(byte[] data)
     {
         ArgumentNullException.ThrowIfNull(data);
-        
+
         var hash = SHA256.HashData(data);
         return Convert.ToBase64String(hash);
     }
 
     /// <summary>
-    /// Verifies the checksum of data.
+    ///     Verifies the checksum of data.
     /// </summary>
     /// <param name="data">The data to verify.</param>
     /// <param name="checksum">The checksum to verify against.</param>
@@ -110,7 +110,7 @@ public static class SecurityUtils
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(checksum);
-        
+
         var calculatedChecksum = CalculateChecksum(data);
         return calculatedChecksum == checksum;
     }

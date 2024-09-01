@@ -157,7 +157,7 @@ public class LicenseManagerTests
         await Assert.ThrowsAsync<DirectoryNotFoundException>(async () =>
             await LicenseManager.LoadLicenseAsync(filePath));
     }
-    
+
     // IsFeatureEnabled Tests
 
     [Fact]
@@ -229,7 +229,7 @@ public class LicenseManagerTests
     }
 
     // SetServerBaseEndpoint Tests
-    
+
     [Fact]
     public void SetServerBaseEndpoint_SetsEndpointCorrectly()
     {

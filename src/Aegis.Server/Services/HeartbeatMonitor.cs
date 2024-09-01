@@ -1,30 +1,38 @@
 ﻿using Aegis.Server.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Aegis.Server.Services;
 
-public class HeartbeatMonitor(ApplicationDbContext dbContext) : IHostedService, IDisposable
+public class HeartbeatMonitor(IServiceProvider serviceProvider) : BackgroundService
 {
-    private Timer? _timer;
+    private readonly TimeSpan _checkInterval = TimeSpan.FromMinutes(5);
     private readonly TimeSpan _heartbeatTimeout = TimeSpan.FromMinutes(10);
+    private readonly IServiceScopeFactory _scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
 
     /// <summary>
-    /// Starts the background task to monitor and clean up expired activations.
+    ///     Starts the background task to monitor and clean up expired activations.
     /// </summary>
-    /// <param name="cancellationToken">A cancellation token that can be used to cancel the work.</param>
+    /// <param name="stoppingToken">A cancellation token that can be used to cancel the work.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    public Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _timer = new Timer(Monitor, null, TimeSpan.Zero, TimeSpan.FromMinutes(5)); 
-        return Task.CompletedTask;
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            await Monitor();
+            await Task.Delay(_checkInterval, stoppingToken);
+        }
     }
 
     /// <summary>
-    /// Monitors the activations and removes any that have expired.
+    ///     Monitors the activations and removes any that have expired.
     /// </summary>
-    /// <param name="state">An object that contains state information for this member.</param>
-    private async void Monitor(object? state)
+    private async Task Monitor()
     {
+        using var scope = _scopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AegisDbContext>();
+
         var timeoutThreshold = DateTime.UtcNow.Subtract(_heartbeatTimeout);
 
         var expiredActivations = await dbContext.Activations
@@ -33,25 +41,5 @@ public class HeartbeatMonitor(ApplicationDbContext dbContext) : IHostedService, 
 
         dbContext.Activations.RemoveRange(expiredActivations);
         await dbContext.SaveChangesAsync();
-    }
-
-    /// <summary>
-    /// Stops the background task.
-    /// </summary>
-    /// <param name="cancellationToken">A cancellation token that can be used to cancel the work.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        _timer?.Change(Timeout.Infinite, 0);
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Disposes of the timer resource.
-    /// </summary>
-    public void Dispose()
-    {
-        _timer?.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

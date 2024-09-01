@@ -6,7 +6,7 @@ namespace Aegis;
 public static class LicenseGenerator
 {
     /// <summary>
-    /// Generates a standard license.
+    ///     Generates a standard license.
     /// </summary>
     /// <param name="userName">The username for the license.</param>
     /// <returns>A new StandardLicense object.</returns>
@@ -16,7 +16,7 @@ public static class LicenseGenerator
     }
 
     /// <summary>
-    /// Generates a trial license.
+    ///     Generates a trial license.
     /// </summary>
     /// <param name="trialPeriod">The trial period for the license.</param>
     /// <returns>A new TrialLicense object.</returns>
@@ -26,18 +26,21 @@ public static class LicenseGenerator
     }
 
     /// <summary>
-    /// Generates a node-locked license.
+    ///     Generates a node-locked license.
     /// </summary>
-    /// <param name="hardwareId">The hardware ID to lock the license to. If null, the current machine's hardware ID will be used.</param>
+    /// <param name="hardwareId">
+    ///     The hardware ID to lock the license to. If null, the current machine's hardware ID will be
+    ///     used.
+    /// </param>
     /// <returns>A new NodeLockedLicense object.</returns>
     public static NodeLockedLicense GenerateNodeLockedLicense(string? hardwareId = null)
     {
         hardwareId ??= HardwareUtils.GetHardwareId();
         return new NodeLockedLicense(hardwareId);
     }
-    
+
     /// <summary>
-    /// Generates a subscription license.
+    ///     Generates a subscription license.
     /// </summary>
     /// <param name="userName">The username for the license.</param>
     /// <param name="subscriptionDuration">The duration of the subscription.</param>
@@ -46,9 +49,9 @@ public static class LicenseGenerator
     {
         return new SubscriptionLicense(userName, subscriptionDuration);
     }
-    
+
     /// <summary>
-    /// Generates a floating license.
+    ///     Generates a floating license.
     /// </summary>
     /// <param name="userName">The username for the license.</param>
     /// <param name="maxActiveUsersCount">The maximum number of concurrent users allowed.</param>
@@ -57,9 +60,9 @@ public static class LicenseGenerator
     {
         return new FloatingLicense(userName, maxActiveUsersCount);
     }
-    
+
     /// <summary>
-    /// Generates a concurrent license.
+    ///     Generates a concurrent license.
     /// </summary>
     /// <param name="userName">The username for the license.</param>
     /// <param name="maxActiveUsersCount">The maximum number of concurrent users allowed.</param>

@@ -6,24 +6,19 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(FloatingLicense), "Floating")]
 public class FloatingLicense : BaseLicense
 {
-    [JsonInclude]
-    public string UserName { get; protected set; }
-    [JsonInclude]
-    public int MaxActiveUsersCount { get; protected set; }
-    
     [JsonConstructor]
     protected FloatingLicense()
     {
         Type = LicenseType.Floating;
     }
-    
+
     public FloatingLicense(string userName, int maxActiveUsersCount)
     {
         UserName = userName;
         MaxActiveUsersCount = maxActiveUsersCount;
         Type = LicenseType.Floating;
     }
-    
+
     public FloatingLicense(BaseLicense license, string userName, int maxActiveUsersCount)
     {
         UserName = userName;
@@ -37,4 +32,8 @@ public class FloatingLicense : BaseLicense
         Type = license.Type;
         IssuedOn = license.IssuedOn;
     }
+
+    [JsonInclude] public string UserName { get; protected set; }
+
+    [JsonInclude] public int MaxActiveUsersCount { get; protected set; }
 }

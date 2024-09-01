@@ -35,7 +35,7 @@ public class LicenseUtilsTests
         Assert.Equal("TestEncryptionKey", keys.EncryptionKey);
         Assert.Equal(TestApiKey, keys.ApiKey);
     }
-        
+
     [Fact]
     public void LoadLicensingSecrets_ThrowsException_ForInvalidPath()
     {
@@ -61,7 +61,7 @@ public class LicenseUtilsTests
         // Clean up
         File.Delete(filePath);
     }
-        
+
     [Fact]
     public void LoadLicensingSecrets_LoadsKeysFromFileCorrectly()
     {
@@ -98,7 +98,7 @@ public class LicenseUtilsTests
         // Clean up
         File.Delete(filePath);
     }
-        
+
     [Fact]
     public void GenerateLicensingSecrets_ThrowsException_ForInvalidPath()
     {
@@ -111,7 +111,8 @@ public class LicenseUtilsTests
     }
 
     // Helper method to generate keys and save them to a file
-    private LicensingSecrets GenerateLicensingSecrets(string key, out string filePath, string? overriddenFilePath = null)
+    private LicensingSecrets GenerateLicensingSecrets(string key, out string filePath,
+        string? overriddenFilePath = null)
     {
         filePath = Path.GetTempFileName();
         var keys = LicenseUtils.GenerateLicensingSecrets(key, overriddenFilePath ?? filePath, TestApiKey);

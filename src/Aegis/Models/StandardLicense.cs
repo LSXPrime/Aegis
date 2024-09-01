@@ -6,9 +6,6 @@ namespace Aegis.Models;
 [JsonDerivedType(typeof(StandardLicense), "Standard")]
 public class StandardLicense : BaseLicense
 {
-    [JsonInclude]
-    public string UserName { get; protected internal set; }
-    
     [JsonConstructor]
     protected StandardLicense()
     {
@@ -33,4 +30,6 @@ public class StandardLicense : BaseLicense
         Type = license.Type;
         IssuedOn = license.IssuedOn;
     }
+
+    [JsonInclude] public string UserName { get; protected internal set; }
 }

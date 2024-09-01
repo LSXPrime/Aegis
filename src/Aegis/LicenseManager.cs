@@ -14,8 +14,6 @@ namespace Aegis;
 
 public static class LicenseManager
 {
-    public static BaseLicense? Current { get; internal set; }
-
     // Validation Endpoint
     private static readonly HttpClient HttpClient = new();
     private static string _serverBaseEndpoint = "https://your-api-url/api/licenses";
@@ -24,9 +22,10 @@ public static class LicenseManager
     private static readonly string DisconnectEndpoint = $"{_serverBaseEndpoint}/disconnect";
     private static TimeSpan _heartbeatInterval = TimeSpan.FromMinutes(5); // Should be less than server timeout
     private static Timer? _heartbeatTimer;
+    public static BaseLicense? Current { get; internal set; }
 
     /// <summary>
-    /// Sets the base endpoint for the licensing server.
+    ///     Sets the base endpoint for the licensing server.
     /// </summary>
     /// <param name="serverBaseEndpoint">The base endpoint for the licensing server.</param>
     /// <exception cref="ArgumentNullException">Thrown if the server base endpoint is null.</exception>
@@ -47,7 +46,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Sets the heartbeat interval for concurrent licenses.
+    ///     Sets the heartbeat interval for concurrent licenses.
     /// </summary>
     /// <param name="heartbeatInterval">The heartbeat interval.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the heartbeat interval is negative.</exception>
@@ -60,7 +59,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Saves a license to a file.
+    ///     Saves a license to a file.
     /// </summary>
     /// <typeparam name="T">The type of license to save.</typeparam>
     /// <param name="license">The license object to save.</param>
@@ -76,7 +75,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Saves a license to a byte array.
+    ///     Saves a license to a byte array.
     /// </summary>
     /// <typeparam name="T">The type of license to save.</typeparam>
     /// <param name="license">The license object to save.</param>
@@ -94,7 +93,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Loads a license from a file.
+    ///     Loads a license from a file.
     /// </summary>
     /// <param name="filePath">The path to the file containing the license data.</param>
     /// <param name="validationMode">The validation mode to use (Online or Offline).</param>
@@ -115,7 +114,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Loads a license from a byte array.
+    ///     Loads a license from a byte array.
     /// </summary>
     /// <param name="licenseData">The byte array containing the license data.</param>
     /// <param name="validationMode">The validation mode to use (Online or Offline).</param>
@@ -146,7 +145,7 @@ public static class LicenseManager
         var license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
         if (license == null)
             throw new InvalidLicenseFormatException("Invalid license file format.");
-        
+
         // Set the current license based on type
         license = license!.Type switch
         {
@@ -167,7 +166,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Checks if a feature is enabled in the current license.
+    ///     Checks if a feature is enabled in the current license.
     /// </summary>
     /// <param name="featureName">The name of the feature to check.</param>
     /// <returns>True if the feature is enabled, false otherwise.</returns>
@@ -177,7 +176,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Throws an exception if a feature is not allowed in the current license.
+    ///     Throws an exception if a feature is not allowed in the current license.
     /// </summary>
     /// <param name="featureName">The name of the feature to check.</param>
     /// <exception cref="FeatureNotLicensedException">Thrown if the feature is not allowed.</exception>
@@ -190,7 +189,7 @@ public static class LicenseManager
     // Helper methods
 
     /// <summary>
-    /// Encrypts and signs the license data.
+    ///     Encrypts and signs the license data.
     /// </summary>
     /// <param name="licenseData">The license data to encrypt and sign.</param>
     /// <returns>The encrypted and signed license data.</returns>
@@ -222,7 +221,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Splits the encrypted license data into its components: encrypted data, signature, and checksum.
+    ///     Splits the encrypted license data into its components: encrypted data, signature, and checksum.
     /// </summary>
     /// <param name="encryptedLicenseData">The encrypted license data.</param>
     /// <returns>A tuple containing the encrypted data, signature, and checksum.</returns>
@@ -249,7 +248,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Validates the license asynchronously.
+    ///     Validates the license asynchronously.
     /// </summary>
     /// <param name="license">The license object to validate.</param>
     /// <param name="licenseData">The raw license data.</param>
@@ -275,7 +274,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Validates the license online.
+    ///     Validates the license online.
     /// </summary>
     /// <param name="license">The license object to validate.</param>
     /// <param name="licenseData">The raw license data.</param>
@@ -302,7 +301,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Validates the license offline.
+    ///     Validates the license offline.
     /// </summary>
     /// <param name="license">The license object to validate.</param>
     /// <param name="licenseData">The raw license data.</param>
@@ -325,7 +324,7 @@ public static class LicenseManager
                 validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
             LicenseType.Concurrent => LicenseValidator.ValidateConcurrentLicense(encryptedLicenseData, signature,
                 validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
-                _ => false
+            _ => false
         };
 
         if (!isLicenseValid)
@@ -333,7 +332,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Gets the validation parameters for the license.
+    ///     Gets the validation parameters for the license.
     /// </summary>
     /// <param name="license">The license object.</param>
     /// <param name="validationParams">Optional validation parameters.</param>
@@ -378,7 +377,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Sends a heartbeat to the licensing server.
+    ///     Sends a heartbeat to the licensing server.
     /// </summary>
     /// <returns>A task that represents the asynchronous heartbeat operation.</returns>
     /// <exception cref="HeartbeatException">Thrown if the heartbeat fails.</exception>
@@ -393,7 +392,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Sends a disconnect message to the licensing server.
+    ///     Sends a disconnect message to the licensing server.
     /// </summary>
     /// <returns>A task that represents the asynchronous disconnect operation.</returns>
     /// <exception cref="HeartbeatException">Thrown if the disconnect fails.</exception>
@@ -408,7 +407,7 @@ public static class LicenseManager
     }
 
     /// <summary>
-    /// Closes connection to the licensing server and releases any resources.
+    ///     Closes connection to the licensing server and releases any resources.
     /// </summary>
     public static async Task CloseAsync()
     {

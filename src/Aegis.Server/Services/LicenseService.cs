@@ -10,10 +10,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Aegis.Server.Services;
 
-public class LicenseService(ApplicationDbContext dbContext)
+public class LicenseService(AegisDbContext dbContext)
 {
     /// <summary>
-    /// Generates a license file asynchronously.
+    ///     Generates a license file asynchronously.
     /// </summary>
     /// <param name="request">The license generation request.</param>
     /// <returns>A byte array containing the generated license file.</returns>
@@ -40,12 +40,12 @@ public class LicenseService(ApplicationDbContext dbContext)
 
 
     /// <summary>
-    /// Validates a license asynchronously.
+    ///     Validates a license asynchronously.
     /// </summary>
     /// <param name="licenseKey">The license key to validate.</param>
     /// <param name="licenseFile">The license file to validate.</param>
     /// <param name="validationParams">Optional validation parameters.</param>
-    /// <returns>A <see cref="LicenseValidationResult"/> object containing the validation result.</returns>
+    /// <returns>A <see cref="LicenseValidationResult" /> object containing the validation result.</returns>
     public async Task<LicenseValidationResult> ValidateLicenseAsync(string licenseKey, byte[]? licenseFile,
         Dictionary<string, string?>? validationParams = null)
     {
@@ -58,7 +58,7 @@ public class LicenseService(ApplicationDbContext dbContext)
         if (license == null)
             return new LicenseValidationResult(false, null, new NotFoundException("License not found."));
 
-        if (license.ExpirationDate.HasValue && license.ExpirationDate.Value < DateTime.UtcNow ||
+        if ((license.ExpirationDate.HasValue && license.ExpirationDate.Value < DateTime.UtcNow) ||
             license.Status == LicenseStatus.Expired)
         {
             license.Status = LicenseStatus.Expired;
@@ -92,21 +92,17 @@ public class LicenseService(ApplicationDbContext dbContext)
             if (loadedLicense.Type != license.Type ||
                 loadedLicense.LicenseId != license.LicenseId ||
                 loadedLicense.IssuedOn != license.IssuedOn)
-            {
                 return new LicenseValidationResult(false, null,
                     new LicenseValidationException("License file does not match the stored license."));
-            }
 
             switch (loadedLicense)
             {
                 case NodeLockedLicense nl:
                     if (validationParams != null && validationParams.TryGetValue("HardwareId", out var hardwareId) &&
                         nl.HardwareId != hardwareId)
-                    {
                         return new LicenseValidationResult(false, null,
                             new HardwareMismatchException(
                                 "License hardware ID does not match the requested hardware ID."));
-                    }
 
                     break;
                 case StandardLicense sl:
@@ -126,19 +122,15 @@ public class LicenseService(ApplicationDbContext dbContext)
                 case SubscriptionLicense subscriptionLicense:
                     if (subscriptionLicense.SubscriptionStartDate.Add(subscriptionLicense.SubscriptionDuration) <=
                         license.SubscriptionExpiryDate!.Value)
-                    {
                         return new LicenseValidationResult(false, null,
                             new ExpiredLicenseException("License expired."));
-                    }
 
                     break;
                 case FloatingLicense floatingLicense:
                     if (floatingLicense.MaxActiveUsersCount != license.MaxActiveUsersCount ||
                         floatingLicense.UserName != license.IssuedTo)
-                    {
                         return new LicenseValidationResult(false, null,
                             new InvalidLicenseFormatException("License file does not match the stored license."));
-                    }
 
                     break;
             }
@@ -148,19 +140,16 @@ public class LicenseService(ApplicationDbContext dbContext)
     }
 
     /// <summary>
-    /// Activates a license asynchronously.
+    ///     Activates a license asynchronously.
     /// </summary>
     /// <param name="licenseKey">The license key to activate.</param>
     /// <param name="hardwareId">The hardware ID of the machine activating the license (optional).</param>
-    /// <returns>A <see cref="LicenseActivationResult"/> object containing the activation result.</returns>
+    /// <returns>A <see cref="LicenseActivationResult" /> object containing the activation result.</returns>
     public async Task<LicenseActivationResult> ActivateLicenseAsync(string licenseKey, string? hardwareId = null)
     {
         var validationResult = await ValidateLicenseAsync(licenseKey, null,
-            new Dictionary<string, string?>() { { "HardwareId", hardwareId } });
-        if (!validationResult.IsValid)
-        {
-            return new LicenseActivationResult(false, validationResult.Exception);
-        }
+            new Dictionary<string, string?> { { "HardwareId", hardwareId } });
+        if (!validationResult.IsValid) return new LicenseActivationResult(false, validationResult.Exception);
 
         var license = validationResult.License!;
         switch (license.Type)
@@ -174,17 +163,13 @@ public class LicenseService(ApplicationDbContext dbContext)
                 break;
             case LicenseType.Concurrent:
                 if (license.ActiveUsersCount >= license.MaxActiveUsersCount)
-                {
                     return new LicenseActivationResult(false,
                         new MaximumActivationsReachedException("Maximum activations reached."));
-                }
 
                 // Acquire a lock (using a database row lock)
                 var lockObject = await dbContext.Licenses.FirstOrDefaultAsync(l => l.LicenseKey == licenseKey);
                 if (lockObject == null)
-                {
                     return new LicenseActivationResult(false, new NotFoundException("License not found."));
-                }
 
                 dbContext.Entry(lockObject).State = EntityState.Modified;
 
@@ -223,9 +208,7 @@ public class LicenseService(ApplicationDbContext dbContext)
                 break;
             case LicenseType.Subscription:
                 if (license.SubscriptionExpiryDate < DateTime.UtcNow)
-                {
                     return new LicenseActivationResult(false, new ExpiredLicenseException("Subscription has expired."));
-                }
 
                 break;
             case LicenseType.Floating:
@@ -262,11 +245,11 @@ public class LicenseService(ApplicationDbContext dbContext)
     }
 
     /// <summary>
-    /// Disconnects a concurrent license user asynchronously.
+    ///     Disconnects a concurrent license user asynchronously.
     /// </summary>
     /// <param name="licenseKey">The license key to disconnect.</param>
     /// <param name="hardwareId">The hardware ID of the machine to disconnect (optional).</param>
-    /// <returns>A <see cref="LicenseDeactivationResult"/> object containing the deactivation result.</returns>
+    /// <returns>A <see cref="LicenseDeactivationResult" /> object containing the deactivation result.</returns>
     public async Task<LicenseDeactivationResult> DisconnectConcurrentLicenseUser(string licenseKey,
         string? hardwareId = null)
     {
@@ -279,21 +262,18 @@ public class LicenseService(ApplicationDbContext dbContext)
     }
 
     /// <summary>
-    /// Revokes a license asynchronously.
+    ///     Revokes a license asynchronously.
     /// </summary>
     /// <param name="licenseKey">The license key to revoke.</param>
     /// <param name="hardwareId">The hardware ID of the machine to revoke the license from (optional).</param>
-    /// <returns>A <see cref="LicenseDeactivationResult"/> object containing the deactivation result.</returns>
+    /// <returns>A <see cref="LicenseDeactivationResult" /> object containing the deactivation result.</returns>
     public async Task<LicenseDeactivationResult> RevokeLicenseAsync(string licenseKey, string? hardwareId = null)
     {
         var license = await dbContext.Licenses
             .Include(l => l.Activations)
             .FirstOrDefaultAsync(l => l.LicenseKey == licenseKey);
 
-        if (license == null)
-        {
-            return new LicenseDeactivationResult(false, new NotFoundException("License not found."));
-        }
+        if (license == null) return new LicenseDeactivationResult(false, new NotFoundException("License not found."));
 
         switch (license.Type)
         {
@@ -302,9 +282,7 @@ public class LicenseService(ApplicationDbContext dbContext)
                 // Acquire a lock (using a database row lock for concurrent licenses)
                 var lockObject = await dbContext.Licenses.FirstOrDefaultAsync(l => l.LicenseKey == licenseKey);
                 if (lockObject == null)
-                {
                     return new LicenseDeactivationResult(false, new NotFoundException("License not found."));
-                }
 
                 dbContext.Entry(lockObject).State = EntityState.Modified;
 
@@ -349,34 +327,24 @@ public class LicenseService(ApplicationDbContext dbContext)
     }
 
     /// <summary>
-    /// Renews a subscription license asynchronously.
+    ///     Renews a subscription license asynchronously.
     /// </summary>
     /// <param name="licenseKey">The license key to renew.</param>
     /// <param name="newExpirationDate">The new expiration date for the license.</param>
-    /// <returns>A <see cref="LicenseRenewalResult"/> object containing the renewal result.</returns>
+    /// <returns>A <see cref="LicenseRenewalResult" /> object containing the renewal result.</returns>
     public async Task<LicenseRenewalResult> RenewLicenseAsync(string licenseKey, DateTime newExpirationDate)
     {
         var license = await dbContext.Licenses.FirstOrDefaultAsync(l => l.LicenseKey == licenseKey);
-        if (license == null)
-        {
-            return new LicenseRenewalResult(false, "License not found.");
-        }
+        if (license == null) return new LicenseRenewalResult(false, "License not found.");
 
         if (license.Type != LicenseType.Subscription)
-        {
             return new LicenseRenewalResult(false, "Invalid license type. Only subscription licenses can be renewed.");
-        }
 
-        if (license.Status == LicenseStatus.Revoked)
-        {
-            return new LicenseRenewalResult(false, "License revoked.");
-        }
+        if (license.Status == LicenseStatus.Revoked) return new LicenseRenewalResult(false, "License revoked.");
 
         if (newExpirationDate < DateTime.UtcNow || newExpirationDate < license.SubscriptionExpiryDate)
-        {
             return new LicenseRenewalResult(false,
                 "New expiration date cannot be in the past or before the current expiration date.");
-        }
 
 
         license.SubscriptionExpiryDate = newExpirationDate;
@@ -388,7 +356,7 @@ public class LicenseService(ApplicationDbContext dbContext)
     }
 
     /// <summary>
-    /// Processes a heartbeat for a concurrent license asynchronously.
+    ///     Processes a heartbeat for a concurrent license asynchronously.
     /// </summary>
     /// <param name="licenseKey">The license key.</param>
     /// <param name="machineId">The machine ID sending the heartbeat.</param>
@@ -496,7 +464,7 @@ public class LicenseService(ApplicationDbContext dbContext)
 
     private BaseLicense MapLicenseToBaseLicense(License license)
     {
-        return new BaseLicense()
+        return new BaseLicense
         {
             LicenseId = license.LicenseId,
             LicenseKey = license.LicenseKey,
