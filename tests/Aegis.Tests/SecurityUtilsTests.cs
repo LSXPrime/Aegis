@@ -27,12 +27,14 @@ public class SecurityUtilsTests
     public void EncryptData_DecryptsDataCorrectly()
     {
         // Arrange
-        var testKey = GenerateTestKey();
-        var testData = GenerateTestData(128);
-
+        var rsa = CreateRsaKey();
+        var privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
+        var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
+        var testData = GenerateTestData(512);
+        
         // Act
-        var encryptedData = SecurityUtils.EncryptData(testData, testKey);
-        var decryptedData = SecurityUtils.DecryptData(encryptedData, testKey);
+        var encryptedData = SecurityUtils.EncryptData(testData, publicKey);
+        var decryptedData = SecurityUtils.DecryptData(encryptedData, privateKey);
 
         // Assert
         Assert.NotEqual(testData, encryptedData);
@@ -84,8 +86,8 @@ public class SecurityUtilsTests
     {
         // Arrange
         var rsa = CreateRsaKey();
-        var privateKey = rsa.ToXmlString(true);
-        var publicKey = rsa.ToXmlString(false);
+        var privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
+        var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
         var testData = GenerateTestData(256);
 
         // Act

@@ -69,7 +69,9 @@ public static class LicenseManager
     {
         ArgumentNullException.ThrowIfNull(license);
         ArgumentNullException.ThrowIfNull(filePath);
-
+        if (Uri.TryCreate(filePath, UriKind.Absolute, out var uri) == false || string.IsNullOrEmpty(uri.LocalPath) || !uri.IsFile)
+            throw new ArgumentException("Invalid file path.", nameof(filePath));
+        
         // Save the combined data to the specified file
         File.WriteAllBytes(filePath, SaveLicense(license));
     }
@@ -198,7 +200,7 @@ public static class LicenseManager
         // Calculate the checksum
         var checksum = SecurityUtils.CalculateChecksum(licenseData);
 
-        var encryptedData = SecurityUtils.EncryptData(licenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
+        var encryptedData = SecurityUtils.EncryptData(licenseData, LicenseUtils.GetLicensingSecrets().PublicKey);
         var signature = SecurityUtils.SignData(encryptedData, LicenseUtils.GetLicensingSecrets().PrivateKey);
 
         // Combine encrypted data, checksum, and signature into a single byte array

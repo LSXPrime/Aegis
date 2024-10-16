@@ -92,7 +92,7 @@ public class LicenseManagerTests
         const string filePath = "Invalid/File/Path"; // This should be an invalid path on most systems
 
         // Act & Assert
-        Assert.Throws<DirectoryNotFoundException>(() => LicenseManager.SaveLicense(license, filePath));
+        Assert.Throws<ArgumentException>(() => LicenseManager.SaveLicense(license, filePath));
     }
 
     [Fact]
@@ -365,11 +365,12 @@ public class LicenseManagerTests
     {
         // Arrange
         LoadSecretKeys();
+        var publicKey = LicenseUtils.GetLicensingSecrets().PublicKey; // Get private key
         var privateKey = LicenseUtils.GetLicensingSecrets().PrivateKey; // Get private key
         var data = "This is a secret message"u8.ToArray();
 
         // Act
-        var encryptedData = SecurityUtils.EncryptData(data, privateKey);
+        var encryptedData = SecurityUtils.EncryptData(data, publicKey);
         var decryptedData = SecurityUtils.DecryptData(encryptedData, privateKey);
 
         // Assert

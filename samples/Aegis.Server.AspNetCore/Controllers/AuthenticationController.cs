@@ -78,7 +78,7 @@ public class AuthenticationController(AuthService authService, ApplicationDbCont
         if (user == null)
             return Unauthorized("User associated with refresh token not found.");
 
-        var newTokens = authService.GenerateJwtToken(userId, user.Username, storedRefreshToken.Role);
+        var newTokens = await authService.GenerateJwtToken(userId, user.Username, storedRefreshToken.Role);
 
         return Ok(newTokens);
     }

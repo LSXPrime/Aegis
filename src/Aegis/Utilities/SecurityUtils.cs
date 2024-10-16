@@ -1,5 +1,4 @@
 ﻿using System.Security.Cryptography;
-using System.Text;
 
 namespace Aegis.Utilities;
 
@@ -9,52 +8,74 @@ public static class SecurityUtils
     ///     Encrypts data using AES encryption.
     /// </summary>
     /// <param name="data">The data to encrypt.</param>
-    /// <param name="key">The encryption key.</param>
+    /// <param name="publicKey">The encryption key.</param>
     /// <returns>The encrypted data.</returns>
     /// <exception cref="ArgumentNullException">Thrown if data or key is null.</exception>
-    public static byte[] EncryptData(byte[] data, string key)
+    public static byte[] EncryptData(byte[] data, string publicKey)
     {
         ArgumentNullException.ThrowIfNull(data);
-        ArgumentNullException.ThrowIfNull(key);
+        ArgumentException.ThrowIfNullOrEmpty(publicKey);
+        
+        using var rsa = RSA.Create();
+        rsa.ImportRSAPublicKey(Convert.FromBase64String(publicKey), out _);
 
-        using var aes = Aes.Create();
-        aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(key));
-        aes.IV = new byte[aes.BlockSize / 8];
+        // Encrypt the data in chunks
+        var keySizeBytes = rsa.KeySize / 16;
+        var maxDataLength = keySizeBytes - 42; // Subtract padding overhead (OAEP SHA-256)
+        var encryptedData = Array.Empty<byte>();
 
-        using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-        using var ms = new MemoryStream();
-        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+        for (var i = 0; i < data.Length; i += maxDataLength)
         {
-            cs.Write(data, 0, data.Length);
+            var bytesToEncrypt = Math.Min(maxDataLength, data.Length - i);
+            var chunk = new byte[bytesToEncrypt];
+            Array.Copy(data, i, chunk, 0, bytesToEncrypt);
+
+            var encryptedChunk = rsa.Encrypt(chunk, RSAEncryptionPadding.OaepSHA256);
+            encryptedData = CombineByteArrays(encryptedData, encryptedChunk);
         }
 
-        return ms.ToArray();
+        return encryptedData;
     }
 
     /// <summary>
     ///     Decrypts data using AES decryption.
     /// </summary>
     /// <param name="data">The data to decrypt.</param>
-    /// <param name="key">The decryption key.</param>
+    /// <param name="privateKey">The decryption key.</param>
     /// <returns>The decrypted data.</returns>
     /// <exception cref="ArgumentNullException">Thrown if data or key is null.</exception>
-    public static byte[] DecryptData(byte[] data, string key)
+    public static byte[] DecryptData(byte[] data, string privateKey)
     {
         ArgumentNullException.ThrowIfNull(data);
-        ArgumentNullException.ThrowIfNull(key);
+        ArgumentException.ThrowIfNullOrEmpty(privateKey);
 
-        using var aes = Aes.Create();
-        aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(key));
-        aes.IV = new byte[aes.BlockSize / 8];
+        using var rsa = RSA.Create();
+        rsa.ImportRSAPrivateKey(Convert.FromBase64String(privateKey), out _);
 
-        using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-        using var ms = new MemoryStream();
-        using (var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Write))
+        // Decrypt the data in chunks
+        var keySizeBytes = rsa.KeySize / 8;
+        var decryptedData = Array.Empty<byte>();
+
+        for (var i = 0; i < data.Length; i += keySizeBytes)
         {
-            cs.Write(data, 0, data.Length);
+            var bytesToDecrypt = Math.Min(keySizeBytes, data.Length - i);
+            var chunk = new byte[bytesToDecrypt];
+            Array.Copy(data, i, chunk, 0, bytesToDecrypt);
+
+            var decryptedChunk = rsa.Decrypt(chunk, RSAEncryptionPadding.OaepSHA256);
+            decryptedData = CombineByteArrays(decryptedData, decryptedChunk);
         }
 
-        return ms.ToArray();
+        return decryptedData;
+    }
+    
+    // Helper function to combine byte arrays
+    private static byte[] CombineByteArrays(byte[] array1, byte[] array2)
+    {
+        var combined = new byte[array1.Length + array2.Length];
+        Array.Copy(array1, 0, combined, 0, array1.Length);
+        Array.Copy(array2, 0, combined, array1.Length, array2.Length);
+        return combined;
     }
 
     /// <summary>
@@ -65,9 +86,15 @@ public static class SecurityUtils
     /// <returns>The signature of the data.</returns>
     public static byte[] SignData(byte[] data, string privateKey)
     {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentException.ThrowIfNullOrEmpty(privateKey);
+
         using var rsa = RSA.Create();
-        rsa.FromXmlString(privateKey);
-        return rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        rsa.ImportRSAPrivateKey(Convert.FromBase64String(privateKey), out _);
+
+        // Sign the data using SHA256 hash algorithm
+        var signature = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return signature;
     }
 
     /// <summary>
@@ -79,10 +106,16 @@ public static class SecurityUtils
     /// <returns>True if the signature is valid, false otherwise.</returns>
     public static bool VerifySignature(byte[] data, byte[] signature, string publicKey)
     {
-        using var rsa = RSA.Create();
-        rsa.FromXmlString(publicKey);
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(signature);
+        ArgumentException.ThrowIfNullOrEmpty(publicKey);
 
-        return rsa.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        using var rsa = RSA.Create();
+        rsa.ImportRSAPublicKey(Convert.FromBase64String(publicKey), out _);
+
+        // Verify the signature using SHA256 hash algorithm
+        var verified = rsa.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        return verified;
     }
 
     /// <summary>
@@ -109,7 +142,7 @@ public static class SecurityUtils
     public static bool VerifyChecksum(byte[] data, string checksum)
     {
         ArgumentNullException.ThrowIfNull(data);
-        ArgumentNullException.ThrowIfNull(checksum);
+        ArgumentException.ThrowIfNullOrEmpty(checksum);
 
         var calculatedChecksum = CalculateChecksum(data);
         return calculatedChecksum == checksum;

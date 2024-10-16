@@ -45,6 +45,8 @@ public class AuthenticationControllerTests
     public async Task Register_ValidRequest_ReturnsOkResult()
     {
         // Arrange
+        await _dbContext.Roles.AddAsync(new Role { Name = "User" });
+        await _dbContext.SaveChangesAsync();
         var registerDto = new RegisterDto
         {
             Username = "testuser",
@@ -92,7 +94,7 @@ public class AuthenticationControllerTests
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("Username or email is already taken.", badRequestResult.Value);
+        Assert.Equal("Username or email is already taken or role does not exist.", badRequestResult.Value);
     }
 
     [Fact]
@@ -118,7 +120,7 @@ public class AuthenticationControllerTests
 
         // Assert
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
-        Assert.Equal("Username or email is already taken.", badRequestResult.Value);
+        Assert.Equal("Username or email is already taken or role does not exist.", badRequestResult.Value);
     }
 
     [Fact]

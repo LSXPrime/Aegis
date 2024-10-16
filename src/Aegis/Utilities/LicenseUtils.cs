@@ -95,8 +95,8 @@ public static class LicenseUtils
             var rsa = RSA.Create();
             var keys = new LicensingSecrets
             {
-                PublicKey = rsa.ToXmlString(false),
-                PrivateKey = rsa.ToXmlString(true),
+                PublicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey()),
+                PrivateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey()),
                 EncryptionKey = Encoding.UTF8.GetString(SHA256.HashData(Encoding.UTF8.GetBytes(key))),
                 ApiKey = apiKey
             };
@@ -106,11 +106,11 @@ public static class LicenseUtils
             using var aes = Aes.Create();
             aes.Key = SHA256.HashData(Encoding.UTF8.GetBytes(key));
             aes.IV = new byte[aes.BlockSize / 8];
-            var encryptedData = Encoding.UTF8.GetBytes(json);
-            var decryptedData = aes.CreateEncryptor(aes.Key, aes.IV)
-                .TransformFinalBlock(encryptedData, 0, encryptedData.Length);
+            var data = Encoding.UTF8.GetBytes(json);
+            var encryptedData = aes.CreateEncryptor(aes.Key, aes.IV)
+                .TransformFinalBlock(data, 0, data.Length);
 
-            File.WriteAllBytes(path, decryptedData);
+            File.WriteAllBytes(path, encryptedData);
             return keys;
         }
         catch (Exception ex) when (ex is IOException or CryptographicException)

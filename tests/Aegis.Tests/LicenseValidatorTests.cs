@@ -15,14 +15,13 @@ public class LicenseValidatorTests
     }
 
     private static (byte[] EncryptedLicenseData, byte[] Signature) GenerateEncryptedLicenseData(BaseLicense license,
-        string? privateKey = null)
+        string? publicKey = null)
     {
         var licenseData = JsonSerializer.SerializeToUtf8Bytes(license);
 
         var encryptedLicenseData =
-            SecurityUtils.EncryptData(licenseData, privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
-        var signature = SecurityUtils.SignData(encryptedLicenseData,
-            privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
+            SecurityUtils.EncryptData(licenseData, publicKey ?? LicenseUtils.GetLicensingSecrets().PublicKey);
+        var signature = SecurityUtils.SignData(encryptedLicenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
 
         return (encryptedLicenseData, signature);
     }
@@ -345,17 +344,12 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var rsa = CreateRsaKey(); // New key to simulate decryption failure
-        var incorrectPrivateKey = rsa.ToXmlString(true);
+        var incorrectPublicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
         var license = GenerateStandardLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license, incorrectPrivateKey);
+        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license, incorrectPublicKey);
 
 
-        // Act
-        var isValid = VerifySignatureAndDecrypt(encryptedLicenseData, signature,
-            out var licenseObj);
-
-        // Assert
-        Assert.False(isValid);
-        Assert.Null(licenseObj);
+        // Act & Assert
+        Assert.ThrowsAny<CryptographicException>(() => VerifySignatureAndDecrypt(encryptedLicenseData, signature, out _)); 
     }
 }

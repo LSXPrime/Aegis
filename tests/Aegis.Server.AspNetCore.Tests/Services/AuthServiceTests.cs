@@ -117,6 +117,8 @@ public class AuthServiceTests
     public async Task RegisterAsync_UniqueCredentials_ReturnsTrueAndSavesUser()
     {
         // Arrange
+        await _dbContext.Roles.AddAsync(new Role { Name = "User" });
+        await _dbContext.SaveChangesAsync();
         var newUser = new RegisterDto
         {
             Username = "newuser",

@@ -209,9 +209,9 @@ adapt the provided code to your specific needs.
 
 #### Aegis.Server.AspNetCore Sample Implementation
 
-1. **Clone the Aegis.Server.AspNetCore repository:**
+1. **Clone the Aegis repository and acquire Aegis.Server.AspNetCore from Samples directory:**
    ```
-   git clone https://github.com/your-username/Aegis.Server.git
+   git clone https://github.com/LSXPrime/Aegis.git
    ```
 
 2. **Configure the database connection:**
