@@ -9,15 +9,13 @@ public static class LicenseValidator
     /// <summary>
     ///     Validates a standard license.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
-    /// <param name="userName">The user name for the license.</param>
+    /// <param name="licenseData">The raw license data.</param>
+    /// <param name="userName">The username for the license.</param>
     /// <param name="serialNumber">The serial number for the license.</param>
     /// <returns>True if the license is valid, false otherwise.</returns>
-    public static bool ValidateStandardLicense(byte[] encryptedLicenseData, byte[] signature,
-        string userName, string serialNumber)
+    public static bool ValidateStandardLicense(byte[] licenseData, string userName, string serialNumber)
     {
-        if (!VerifySignatureAndDecrypt(encryptedLicenseData, signature, out var licenseObj))
+        if (!VerifyLicenseData(licenseData, out var licenseObj))
             return false;
 
         if (licenseObj is not StandardLicense license ||
@@ -30,12 +28,11 @@ public static class LicenseValidator
     /// <summary>
     ///     Validates a trial license.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
+    /// <param name="licenseData">The raw license data.</param>
     /// <returns>True if the license is valid, false otherwise.</returns>
-    public static bool ValidateTrialLicense(byte[] encryptedLicenseData, byte[] signature)
+    public static bool ValidateTrialLicense(byte[] licenseData)
     {
-        if (!VerifySignatureAndDecrypt(encryptedLicenseData, signature, out var licenseObj))
+        if (!VerifyLicenseData(licenseData, out var licenseObj))
             return false;
 
         return licenseObj is TrialLicense license && license.ExpirationDate > DateTime.UtcNow &&
@@ -46,17 +43,15 @@ public static class LicenseValidator
     /// <summary>
     ///     Validates a node-locked license.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
+    /// <param name="licenseData">The raw license data.</param>
     /// <param name="hardwareId">
     ///     The hardware ID to validate against. If null, the hardware ID embedded in the license will be
     ///     used.
     /// </param>
     /// <returns>True if the license is valid, false otherwise.</returns>
-    public static bool ValidateNodeLockedLicense(byte[] encryptedLicenseData, byte[] signature,
-        string? hardwareId = null)
+    public static bool ValidateNodeLockedLicense(byte[] licenseData, string? hardwareId = null)
     {
-        if (!VerifySignatureAndDecrypt(encryptedLicenseData, signature, out var licenseObj))
+        if (!VerifyLicenseData(licenseData, out var licenseObj))
             return false;
 
         return licenseObj is NodeLockedLicense license &&
@@ -67,12 +62,11 @@ public static class LicenseValidator
     /// <summary>
     ///     Validates a subscription license.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
+    /// <param name="licenseData">The raw license data.</param>
     /// <returns>True if the license is valid, false otherwise.</returns>
-    public static bool ValidateSubscriptionLicense(byte[] encryptedLicenseData, byte[] signature)
+    public static bool ValidateSubscriptionLicense(byte[] licenseData)
     {
-        if (!VerifySignatureAndDecrypt(encryptedLicenseData, signature, out var licenseObj))
+        if (!VerifyLicenseData(licenseData, out var licenseObj))
             return false;
 
         return licenseObj is SubscriptionLicense license &&
@@ -83,15 +77,13 @@ public static class LicenseValidator
     /// <summary>
     ///     Validates a floating license.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
-    /// <param name="userName">The user name for the license.</param>
+    /// <param name="licenseData">The raw license data.</param>
+    /// <param name="userName">The username for the license.</param>
     /// <param name="maxActiveUsersCount">The maximum number of concurrent users allowed.</param>
     /// <returns>True if the license is valid, false otherwise.</returns>
-    public static bool ValidateFloatingLicense(byte[] encryptedLicenseData, byte[] signature, string userName,
-        int maxActiveUsersCount)
+    public static bool ValidateFloatingLicense(byte[] licenseData, string userName, int maxActiveUsersCount)
     {
-        if (!VerifySignatureAndDecrypt(encryptedLicenseData, signature, out var licenseObj))
+        if (!VerifyLicenseData(licenseData, out var licenseObj))
             return false;
 
         return licenseObj is FloatingLicense license &&
@@ -102,15 +94,13 @@ public static class LicenseValidator
     /// <summary>
     ///     Validates a concurrent license.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
-    /// <param name="userName">The user name for the license.</param>
+    /// <param name="licenseData">The raw license data.</param>
+    /// <param name="userName">The username for the license.</param>
     /// <param name="maxActiveUsersCount">The maximum number of concurrent users allowed.</param>
     /// <returns>True if the license is valid, false otherwise.</returns>
-    public static bool ValidateConcurrentLicense(byte[] encryptedLicenseData, byte[] signature, string userName,
-        int maxActiveUsersCount)
+    public static bool ValidateConcurrentLicense(byte[] licenseData, string userName, int maxActiveUsersCount)
     {
-        if (!VerifySignatureAndDecrypt(encryptedLicenseData, signature, out var licenseObj))
+        if (!VerifyLicenseData(licenseData, out var licenseObj))
             return false;
 
         return licenseObj is ConcurrentLicense license &&
@@ -118,22 +108,33 @@ public static class LicenseValidator
                license.MaxActiveUsersCount == maxActiveUsersCount;
     }
 
+
     /// <summary>
-    ///     Verifies the signature and decrypts the license data.
+    ///     Verifies the license data integrity and signature.
     /// </summary>
-    /// <param name="encryptedLicenseData">The encrypted license data.</param>
-    /// <param name="signature">The signature of the license data.</param>
-    /// <param name="license">The deserialized license object.</param>
-    /// <returns>True if the signature and decryption are successful, false otherwise.</returns>
-    private static bool VerifySignatureAndDecrypt(byte[] encryptedLicenseData, byte[] signature, out object? license)
+    /// <param name="licenseData">The raw license data.</param>
+    /// <param name="license">The deserialized license object if verification succeeds.</param>
+    /// <returns>True if the verification is successful, false otherwise.</returns>
+    internal static bool VerifyLicenseData(byte[] licenseData, out object? license)
     {
         license = null;
-        if (!SecurityUtils.VerifySignature(encryptedLicenseData, signature,
-                LicenseUtils.GetLicensingSecrets().PublicKey))
+
+        // Split the license data into its components
+        var (hash, signature, encryptedData, aesKey) = LicenseManager.SplitLicenseData(licenseData);
+
+        // Verify the RSA signature
+        if (!SecurityUtils.VerifySignature(hash, signature, LicenseUtils.GetLicensingSecrets().PublicKey))
             return false;
 
-        var decryptedData =
-            SecurityUtils.DecryptData(encryptedLicenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
+        // Calculate the SHA256 hash of the encrypted data and compare with the provided hash
+        var calculatedHash = SecurityUtils.CalculateSha256Hash(encryptedData);
+        if (!hash.SequenceEqual(calculatedHash))
+            return false;
+
+        // Decrypt the license data using AES
+        var decryptedData = SecurityUtils.DecryptData(encryptedData, aesKey);
+
+        // Deserialize the license object
         license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
 
         return license != null;

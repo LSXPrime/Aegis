@@ -1,5 +1,4 @@
-﻿using System.Security.Cryptography;
-using System.Text.Json;
+﻿using System.Reflection;
 using Aegis.Models;
 using Aegis.Utilities;
 
@@ -7,39 +6,6 @@ namespace Aegis.Tests;
 
 public class LicenseValidatorTests
 {
-    private static RSA CreateRsaKey()
-    {
-        var rsa = RSA.Create();
-        rsa.KeySize = 2048;
-        return rsa;
-    }
-
-    private static (byte[] EncryptedLicenseData, byte[] Signature) GenerateEncryptedLicenseData(BaseLicense license,
-        string? publicKey = null)
-    {
-        var licenseData = JsonSerializer.SerializeToUtf8Bytes(license);
-
-        var encryptedLicenseData =
-            SecurityUtils.EncryptData(licenseData, publicKey ?? LicenseUtils.GetLicensingSecrets().PublicKey);
-        var signature = SecurityUtils.SignData(encryptedLicenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
-
-        return (encryptedLicenseData, signature);
-    }
-
-    private static bool VerifySignatureAndDecrypt(byte[] encryptedLicenseData, byte[] signature, out object? license)
-    {
-        license = null;
-        if (!SecurityUtils.VerifySignature(encryptedLicenseData, signature,
-                LicenseUtils.GetLicensingSecrets().PublicKey))
-            return false;
-
-        var decryptedData =
-            SecurityUtils.DecryptData(encryptedLicenseData, LicenseUtils.GetLicensingSecrets().PrivateKey);
-        license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
-
-        return license != null;
-    }
-
     private void LoadSecretKeys()
     {
         var secretPath = Path.GetTempFileName();
@@ -83,11 +49,10 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateStandardLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateStandardLicense(encryptedLicenseData, signature,
-            license.UserName, license.LicenseKey);
+        var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, license.LicenseKey);
 
         // Assert
         Assert.True(isValid);
@@ -99,12 +64,11 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateStandardLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
         const string incorrectUserName = "IncorrectUser";
 
         // Act
-        var isValid = LicenseValidator.ValidateStandardLicense(encryptedLicenseData, signature,
-            incorrectUserName, license.LicenseKey);
+        var isValid = LicenseValidator.ValidateStandardLicense(licenseData, incorrectUserName, license.LicenseKey);
 
         // Assert
         Assert.False(isValid);
@@ -116,12 +80,11 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateStandardLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
         const string incorrectSerialNumber = "IncorrectSerialNumber";
 
         // Act
-        var isValid = LicenseValidator.ValidateStandardLicense(encryptedLicenseData, signature,
-            license.UserName, incorrectSerialNumber);
+        var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, incorrectSerialNumber);
 
         // Assert
         Assert.False(isValid);
@@ -134,11 +97,10 @@ public class LicenseValidatorTests
         LoadSecretKeys();
         var license = GenerateStandardLicense();
         license.ExpirationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1));
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateStandardLicense(encryptedLicenseData, signature,
-            license.UserName, license.LicenseKey);
+        var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, license.LicenseKey);
 
         // Assert
         Assert.False(isValid);
@@ -150,10 +112,10 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateTrialLicense(TimeSpan.FromDays(7));
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateTrialLicense(encryptedLicenseData, signature);
+        var isValid = LicenseValidator.ValidateTrialLicense(licenseData);
 
         // Assert
         Assert.True(isValid);
@@ -165,11 +127,11 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateTrialLicense(TimeSpan.FromDays(7));
-        license.ExpirationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1));
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        license.ExpirationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1)); 
+        var licenseData = LicenseManager.SaveLicense(license); 
 
         // Act
-        var isValid = LicenseValidator.ValidateTrialLicense(encryptedLicenseData, signature);
+        var isValid = LicenseValidator.ValidateTrialLicense(licenseData);
 
         // Assert
         Assert.False(isValid);
@@ -181,10 +143,10 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateTrialLicense(TimeSpan.Zero);
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateTrialLicense(encryptedLicenseData, signature);
+        var isValid = LicenseValidator.ValidateTrialLicense(licenseData);
 
         // Assert
         Assert.False(isValid);
@@ -195,12 +157,12 @@ public class LicenseValidatorTests
     {
         // Arrange
         LoadSecretKeys();
-        var hardwareId = HardwareUtils.GetHardwareId(); // LicenseValidator checks against this device hardware id
+        var hardwareId = HardwareUtils.GetHardwareId(); 
         var license = GenerateNodeLockedLicense(hardwareId);
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateNodeLockedLicense(encryptedLicenseData, signature, hardwareId);
+        var isValid = LicenseValidator.ValidateNodeLockedLicense(licenseData, hardwareId);
 
         // Assert
         Assert.True(isValid);
@@ -213,11 +175,10 @@ public class LicenseValidatorTests
         LoadSecretKeys();
         const string hardwareId = "TestHardwareId";
         var license = GenerateNodeLockedLicense(hardwareId);
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateNodeLockedLicense(encryptedLicenseData, signature,
-            "IncorrectHardwareId");
+        var isValid = LicenseValidator.ValidateNodeLockedLicense(licenseData, "IncorrectHardwareId");
 
         // Assert
         Assert.False(isValid);
@@ -231,10 +192,10 @@ public class LicenseValidatorTests
         const string hardwareId = "TestHardwareId";
         var license = GenerateNodeLockedLicense(hardwareId);
         license.ExpirationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1));
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateNodeLockedLicense(encryptedLicenseData, signature, hardwareId);
+        var isValid = LicenseValidator.ValidateNodeLockedLicense(licenseData, hardwareId);
 
         // Assert
         Assert.False(isValid);
@@ -246,10 +207,10 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateSubscriptionLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateSubscriptionLicense(encryptedLicenseData, signature);
+        var isValid = LicenseValidator.ValidateSubscriptionLicense(licenseData);
 
         // Assert
         Assert.True(isValid);
@@ -262,10 +223,10 @@ public class LicenseValidatorTests
         LoadSecretKeys();
         var license = GenerateSubscriptionLicense();
         license.ExpirationDate = DateTime.UtcNow.Subtract(TimeSpan.FromDays(1));
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateSubscriptionLicense(encryptedLicenseData, signature);
+        var isValid = LicenseValidator.ValidateSubscriptionLicense(licenseData);
 
         // Assert
         Assert.False(isValid);
@@ -277,11 +238,10 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateFloatingLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateFloatingLicense(encryptedLicenseData, signature,
-            license.UserName, license.MaxActiveUsersCount);
+        var isValid = LicenseValidator.ValidateFloatingLicense(licenseData, license.UserName, license.MaxActiveUsersCount);
 
         // Assert
         Assert.True(isValid);
@@ -293,11 +253,10 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateFloatingLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateFloatingLicense(encryptedLicenseData, signature,
-            "IncorrectUser", license.MaxActiveUsersCount);
+        var isValid = LicenseValidator.ValidateFloatingLicense(licenseData, "IncorrectUser", license.MaxActiveUsersCount);
 
         // Assert
         Assert.False(isValid);
@@ -309,47 +268,54 @@ public class LicenseValidatorTests
         // Arrange
         LoadSecretKeys();
         var license = GenerateFloatingLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
 
         // Act
-        var isValid = LicenseValidator.ValidateFloatingLicense(encryptedLicenseData, signature,
-            license.UserName, 15); // Incorrect count
+        var isValid = LicenseValidator.ValidateFloatingLicense(licenseData, license.UserName, 15); // Incorrect count
 
         // Assert
         Assert.False(isValid);
     }
 
-
     [Fact]
-    public void VerifySignatureAndDecrypt_ReturnsFalse_ForInvalidSignature()
+    public void VerifyLicenseData_ReturnsFalse_ForInvalidSignature()
     {
         // Arrange
         LoadSecretKeys();
         var license = GenerateStandardLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license);
+        var licenseData = LicenseManager.SaveLicense(license);
+
+        // Tamper with the signature 
+        var (hash, signature, encryptedData, aesKey) = LicenseManager.SplitLicenseData(licenseData);
+        signature[0]++; // Modify a byte in the signature
+        var combineLicenseDataMethod = typeof(LicenseManager).GetMethod("CombineLicenseData", BindingFlags.NonPublic | BindingFlags.Static);
+        licenseData = (byte[])combineLicenseDataMethod?.Invoke(null, [hash, signature, encryptedData, aesKey])!;
 
         // Act
-        var isValid = VerifySignatureAndDecrypt(encryptedLicenseData,
-            new byte[signature.Length], // Invalid signature
-            out var licenseObj);
+        var isValid = LicenseValidator.VerifyLicenseData(licenseData, out _);
 
         // Assert
         Assert.False(isValid);
-        Assert.Null(licenseObj);
     }
 
     [Fact]
-    public void VerifySignatureAndDecrypt_ReturnsFalse_ForDecryptionFailure()
+    public void VerifyLicenseData_ReturnsFalse_ForTamperedData()
     {
         // Arrange
         LoadSecretKeys();
-        var rsa = CreateRsaKey(); // New key to simulate decryption failure
-        var incorrectPublicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
         var license = GenerateStandardLicense();
-        var (encryptedLicenseData, signature) = GenerateEncryptedLicenseData(license, incorrectPublicKey);
+        var licenseData = LicenseManager.SaveLicense(license);
 
+        // Tamper with the encrypted data
+        var (hash, signature, encryptedData, aesKey) = LicenseManager.SplitLicenseData(licenseData);
+        encryptedData[0]++; // Modify a byte in the encrypted data
+        var combineLicenseDataMethod = typeof(LicenseManager).GetMethod("CombineLicenseData", BindingFlags.NonPublic | BindingFlags.Static);
+        licenseData = (byte[])combineLicenseDataMethod?.Invoke(null, [hash, signature, encryptedData, aesKey])!;
 
-        // Act & Assert
-        Assert.ThrowsAny<CryptographicException>(() => VerifySignatureAndDecrypt(encryptedLicenseData, signature, out _)); 
+        // Act
+        var isValid = LicenseValidator.VerifyLicenseData(licenseData, out _);
+
+        // Assert
+        Assert.False(isValid);
     }
 }

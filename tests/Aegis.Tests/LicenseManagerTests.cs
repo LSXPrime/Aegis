@@ -329,10 +329,8 @@ public class LicenseManagerTests
         var publicKey = LicenseUtils.GetLicensingSecrets().PublicKey; // Get the public key
 
         // Act
-        var (encryptedLicenseData, signature, _) = (ValueTuple<byte[], byte[], byte[]>)typeof(LicenseManager)
-            .GetMethod("SplitEncryptedDataAndSignature", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, [licenseData])!;
-        var isValid = SecurityUtils.VerifySignature(encryptedLicenseData, signature, publicKey);
+        var (hash, signature, _, _) = LicenseManager.SplitLicenseData(licenseData);
+        var isValid = SecurityUtils.VerifySignature(hash, signature, publicKey); // Verify signature of hash
 
         // Assert
         Assert.True(isValid);
@@ -349,32 +347,11 @@ public class LicenseManagerTests
         var invalidSignature = new byte[16]; // Create a fake, invalid signature
 
         // Act
-        var (encryptedLicenseData, _, _) = (ValueTuple<byte[], byte[], byte[]>)typeof(LicenseManager)
-            .GetMethod("SplitEncryptedDataAndSignature", BindingFlags.Static | BindingFlags.NonPublic)!
-            .Invoke(null, [licenseData])!;
-        var isValid = SecurityUtils.VerifySignature(encryptedLicenseData, invalidSignature, publicKey);
+        var (hash, _, _, _) = LicenseManager.SplitLicenseData(licenseData);
+
+        var isValid = SecurityUtils.VerifySignature(hash, invalidSignature, publicKey);
 
         // Assert
         Assert.False(isValid);
-    }
-
-    // Data Encryption and Decryption Tests
-
-    [Fact]
-    public void EncryptData_DecryptsDataCorrectly()
-    {
-        // Arrange
-        LoadSecretKeys();
-        var publicKey = LicenseUtils.GetLicensingSecrets().PublicKey; // Get private key
-        var privateKey = LicenseUtils.GetLicensingSecrets().PrivateKey; // Get private key
-        var data = "This is a secret message"u8.ToArray();
-
-        // Act
-        var encryptedData = SecurityUtils.EncryptData(data, publicKey);
-        var decryptedData = SecurityUtils.DecryptData(encryptedData, privateKey);
-
-        // Assert
-        Assert.NotEqual(data, encryptedData); // Ensure encryption
-        Assert.Equal(data, decryptedData); // Ensure decryption
     }
 }

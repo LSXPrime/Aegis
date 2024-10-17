@@ -4,69 +4,80 @@ namespace Aegis.Utilities;
 
 public static class SecurityUtils
 {
-    /// <summary>
-    ///     Encrypts data using AES encryption.
-    /// </summary>
-    /// <param name="data">The data to encrypt.</param>
-    /// <param name="publicKey">The encryption key.</param>
-    /// <returns>The encrypted data.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if data or key is null.</exception>
-    public static byte[] EncryptData(byte[] data, string publicKey)
+    internal static byte[] GenerateAesKey()
+    {
+        using var aes = Aes.Create();
+        aes.GenerateKey();
+        return aes.Key;
+    }
+
+    internal static byte[] EncryptData(byte[] data, byte[] key)
     {
         ArgumentNullException.ThrowIfNull(data);
-        ArgumentException.ThrowIfNullOrEmpty(publicKey);
         
-        using var rsa = RSA.Create();
-        rsa.ImportRSAPublicKey(Convert.FromBase64String(publicKey), out _);
-
-        // Encrypt the data in chunks
-        var keySizeBytes = rsa.KeySize / 16;
-        var maxDataLength = keySizeBytes - 42; // Subtract padding overhead (OAEP SHA-256)
-        var encryptedData = Array.Empty<byte>();
-
-        for (var i = 0; i < data.Length; i += maxDataLength)
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.GenerateIV();
+        using var encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
+        using var ms = new MemoryStream();
+        using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
         {
-            var bytesToEncrypt = Math.Min(maxDataLength, data.Length - i);
-            var chunk = new byte[bytesToEncrypt];
-            Array.Copy(data, i, chunk, 0, bytesToEncrypt);
-
-            var encryptedChunk = rsa.Encrypt(chunk, RSAEncryptionPadding.OaepSHA256);
-            encryptedData = CombineByteArrays(encryptedData, encryptedChunk);
+            cs.Write(data, 0, data.Length);
         }
 
-        return encryptedData;
+        var encryptedData = ms.ToArray();
+        return CombineByteArrays(aes.IV, encryptedData);
+    }
+
+    internal static byte[] DecryptData(byte[] data, byte[] key)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        
+        var ivLength = Aes.Create().IV.Length;
+        var iv = new byte[ivLength];
+        var encryptedData = new byte[data.Length - ivLength];
+
+        Array.Copy(data, 0, iv, 0, ivLength);
+        Array.Copy(data, ivLength, encryptedData, 0, data.Length - ivLength);
+
+        using var aes = Aes.Create();
+        aes.Key = key;
+        aes.IV = iv;
+
+        using var decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
+        using var ms = new MemoryStream(encryptedData);
+        using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+        using var decryptedMs = new MemoryStream();
+        cs.CopyTo(decryptedMs);
+
+        return decryptedMs.ToArray();
     }
 
     /// <summary>
-    ///     Decrypts data using AES decryption.
+    ///     Signs data using RSA signature.
     /// </summary>
-    /// <param name="data">The data to decrypt.</param>
-    /// <param name="privateKey">The decryption key.</param>
-    /// <returns>The decrypted data.</returns>
-    /// <exception cref="ArgumentNullException">Thrown if data or key is null.</exception>
-    public static byte[] DecryptData(byte[] data, string privateKey)
+    /// <param name="data">The data to sign.</param>
+    /// <param name="privateKey">The private key for signing.</param>
+    /// <returns>The signature of the data.</returns>
+    internal static byte[] SignData(byte[] data, string privateKey)
     {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentException.ThrowIfNullOrEmpty(privateKey);
-
         using var rsa = RSA.Create();
         rsa.ImportRSAPrivateKey(Convert.FromBase64String(privateKey), out _);
+        return rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+    }
 
-        // Decrypt the data in chunks
-        var keySizeBytes = rsa.KeySize / 8;
-        var decryptedData = Array.Empty<byte>();
-
-        for (var i = 0; i < data.Length; i += keySizeBytes)
-        {
-            var bytesToDecrypt = Math.Min(keySizeBytes, data.Length - i);
-            var chunk = new byte[bytesToDecrypt];
-            Array.Copy(data, i, chunk, 0, bytesToDecrypt);
-
-            var decryptedChunk = rsa.Decrypt(chunk, RSAEncryptionPadding.OaepSHA256);
-            decryptedData = CombineByteArrays(decryptedData, decryptedChunk);
-        }
-
-        return decryptedData;
+    /// <summary>
+    ///     Verifies the signature of data using RSA signature.
+    /// </summary>
+    /// <param name="data">The data to verify.</param>
+    /// <param name="signature">The signature to verify.</param>
+    /// <param name="publicKey">The public key for verification.</param>
+    /// <returns>True if the signature is valid, false otherwise.</returns>
+    internal static bool VerifySignature(byte[] data, byte[] signature, string publicKey)
+    {
+        using var rsa = RSA.Create();
+        rsa.ImportRSAPublicKey(Convert.FromBase64String(publicKey), out _);
+        return rsa.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
     }
     
     // Helper function to combine byte arrays
@@ -77,47 +88,7 @@ public static class SecurityUtils
         Array.Copy(array2, 0, combined, array1.Length, array2.Length);
         return combined;
     }
-
-    /// <summary>
-    ///     Signs data using RSA signature.
-    /// </summary>
-    /// <param name="data">The data to sign.</param>
-    /// <param name="privateKey">The private key for signing.</param>
-    /// <returns>The signature of the data.</returns>
-    public static byte[] SignData(byte[] data, string privateKey)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentException.ThrowIfNullOrEmpty(privateKey);
-
-        using var rsa = RSA.Create();
-        rsa.ImportRSAPrivateKey(Convert.FromBase64String(privateKey), out _);
-
-        // Sign the data using SHA256 hash algorithm
-        var signature = rsa.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        return signature;
-    }
-
-    /// <summary>
-    ///     Verifies the signature of data using RSA signature.
-    /// </summary>
-    /// <param name="data">The data to verify.</param>
-    /// <param name="signature">The signature to verify.</param>
-    /// <param name="publicKey">The public key for verification.</param>
-    /// <returns>True if the signature is valid, false otherwise.</returns>
-    public static bool VerifySignature(byte[] data, byte[] signature, string publicKey)
-    {
-        ArgumentNullException.ThrowIfNull(data);
-        ArgumentNullException.ThrowIfNull(signature);
-        ArgumentException.ThrowIfNullOrEmpty(publicKey);
-
-        using var rsa = RSA.Create();
-        rsa.ImportRSAPublicKey(Convert.FromBase64String(publicKey), out _);
-
-        // Verify the signature using SHA256 hash algorithm
-        var verified = rsa.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        return verified;
-    }
-
+    
     /// <summary>
     ///     Calculates the SHA256 checksum of data.
     /// </summary>
@@ -130,6 +101,11 @@ public static class SecurityUtils
 
         var hash = SHA256.HashData(data);
         return Convert.ToBase64String(hash);
+    }
+    
+    public static byte[] CalculateSha256Hash(byte[] data)
+    {
+        return SHA256.HashData(data);
     }
 
     /// <summary>

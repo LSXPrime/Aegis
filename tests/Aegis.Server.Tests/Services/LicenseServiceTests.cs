@@ -274,7 +274,7 @@ public class LicenseServiceTests
         // Arrange
         var license = CreateAndSaveLicense(LicenseType.Standard);
         var licenseFile = GenerateLicenseFile(license);
-        licenseFile[0] = (byte)'X';
+        licenseFile[5] = (byte)'X';
 
         // Act
         var result = await _licenseService.ValidateLicenseAsync(license.LicenseKey, licenseFile);

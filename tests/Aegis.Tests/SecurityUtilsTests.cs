@@ -5,15 +5,6 @@ namespace Aegis.Tests;
 
 public class SecurityUtilsTests
 {
-    // Helper method to generate a test key
-    private static string GenerateTestKey()
-    {
-        var randomBytes = new byte[32];
-        using var rng = RandomNumberGenerator.Create();
-        rng.GetBytes(randomBytes);
-        return Convert.ToBase64String(randomBytes);
-    }
-
     // Helper method to generate test data
     private static byte[] GenerateTestData(int length)
     {
@@ -24,17 +15,25 @@ public class SecurityUtilsTests
     }
 
     [Fact]
+    public void GenerateAesKey_ReturnsKeyOfCorrectSize()
+    {
+        // Act
+        var key = SecurityUtils.GenerateAesKey();
+
+        // Assert
+        Assert.Equal(32, key.Length); // AES-256 key size is 32 bytes
+    }
+
+    [Fact]
     public void EncryptData_DecryptsDataCorrectly()
     {
         // Arrange
-        var rsa = CreateRsaKey();
-        var privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
-        var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
+        var key = SecurityUtils.GenerateAesKey();
         var testData = GenerateTestData(512);
-        
+
         // Act
-        var encryptedData = SecurityUtils.EncryptData(testData, publicKey);
-        var decryptedData = SecurityUtils.DecryptData(encryptedData, privateKey);
+        var encryptedData = SecurityUtils.EncryptData(testData, key);
+        var decryptedData = SecurityUtils.DecryptData(encryptedData, key);
 
         // Assert
         Assert.NotEqual(testData, encryptedData);
@@ -45,10 +44,10 @@ public class SecurityUtilsTests
     public void EncryptData_ThrowsException_ForNullData()
     {
         // Arrange
-        var testKey = GenerateTestKey();
+        var key = SecurityUtils.GenerateAesKey();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => SecurityUtils.EncryptData(null!, testKey));
+        Assert.Throws<ArgumentNullException>(() => SecurityUtils.EncryptData(null!, key));
     }
 
     [Fact]
@@ -65,10 +64,10 @@ public class SecurityUtilsTests
     public void DecryptData_ThrowsException_ForNullData()
     {
         // Arrange
-        var testKey = GenerateTestKey();
+        var key = SecurityUtils.GenerateAesKey();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => SecurityUtils.DecryptData(null!, testKey));
+        Assert.Throws<ArgumentNullException>(() => SecurityUtils.DecryptData(null!, key));
     }
 
     [Fact]
@@ -85,7 +84,7 @@ public class SecurityUtilsTests
     public void SignData_VerifiesSignatureCorrectly()
     {
         // Arrange
-        var rsa = CreateRsaKey();
+        var rsa = RSA.Create();
         var privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
         var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
         var testData = GenerateTestData(256);
@@ -102,7 +101,8 @@ public class SecurityUtilsTests
     public void SignData_ThrowsException_ForNullData()
     {
         // Arrange
-        var privateKey = CreateRsaKey().ToXmlString(true);
+        var rsa = RSA.Create();
+        var privateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey());
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => SecurityUtils.SignData(null!, privateKey));
@@ -122,7 +122,8 @@ public class SecurityUtilsTests
     public void VerifySignature_ThrowsException_ForNullData()
     {
         // Arrange
-        var publicKey = CreateRsaKey().ToXmlString(false);
+        var rsa = RSA.Create();
+        var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
         var signature = GenerateTestData(128);
 
         // Act & Assert
@@ -134,7 +135,8 @@ public class SecurityUtilsTests
     public void VerifySignature_ThrowsException_ForNullSignature()
     {
         // Arrange
-        var publicKey = CreateRsaKey().ToXmlString(false);
+        var rsa = RSA.Create();
+        var publicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey());
         var testData = GenerateTestData(256);
 
         // Act & Assert
@@ -172,6 +174,26 @@ public class SecurityUtilsTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => SecurityUtils.CalculateChecksum(null!));
+    }
+    
+    [Fact]
+    public void CalculateSha256Hash_ReturnsCorrectHash()
+    {
+        // Arrange
+        var testData = GenerateTestData(256);
+
+        // Act
+        var hash = SecurityUtils.CalculateSha256Hash(testData);
+
+        // Assert
+        Assert.Equal(32, hash.Length); // SHA256 hash size is 32 bytes
+    }
+
+    [Fact]
+    public void CalculateSha256Hash_ThrowsException_ForNullData()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => SecurityUtils.CalculateSha256Hash(null!));
     }
 
     [Fact]
@@ -220,13 +242,5 @@ public class SecurityUtilsTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => SecurityUtils.VerifyChecksum(testData, null!));
-    }
-
-    // Helper method to create an RSA key for testing
-    private static RSA CreateRsaKey()
-    {
-        var rsa = RSA.Create();
-        rsa.KeySize = 2048;
-        return rsa;
     }
 }

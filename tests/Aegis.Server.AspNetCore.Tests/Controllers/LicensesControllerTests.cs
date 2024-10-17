@@ -479,15 +479,13 @@ public class LicensesControllerTests
         SetupUser("Admin");
         var license = CreateAndSaveLicense(LicenseType.Standard);
         var licenseFile = GenerateLicenseFile(license);
-        licenseFile[0] = (byte)'X'; // Tamper with the license file
+        licenseFile[5] = (byte)'X'; // Tamper with the license file
 
         // Create a mock IFormFile
         var fileMock = new Mock<IFormFile>();
-        var content = licenseFile;
-        var fileName = "license.lic";
-        var ms = new MemoryStream(content);
+        var ms = new MemoryStream(licenseFile);
         fileMock.Setup(f => f.OpenReadStream()).Returns(ms);
-        fileMock.Setup(f => f.FileName).Returns(fileName);
+        fileMock.Setup(f => f.FileName).Returns("license.lic");
         fileMock.Setup(f => f.Length).Returns(ms.Length);
 
         // Act
