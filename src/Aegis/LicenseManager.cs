@@ -21,7 +21,7 @@ public static class LicenseManager
     private static readonly string DisconnectEndpoint = $"{_serverBaseEndpoint}/disconnect";
     private static TimeSpan _heartbeatInterval = TimeSpan.FromMinutes(5); // Should be less than server timeout
     private static Timer? _heartbeatTimer;
-    public static BaseLicense? Current { get; internal set; }
+    public static BaseLicense? Current { get; private set; }
 
     /// <summary>
     ///     Sets the base endpoint for the licensing server.
@@ -141,25 +141,9 @@ public static class LicenseManager
     public static async Task<BaseLicense?> LoadLicenseAsync(byte[] licenseData,
         ValidationMode validationMode = ValidationMode.Offline, Dictionary<string, string?>? validationParams = null)
     {
-        // Split the data into its components
-        var (hash, signature, encryptedData, aesKey) = SplitLicenseData(licenseData);
-
-        // Verify the RSA signature of the hash
-        if (!SecurityUtils.VerifySignature(hash, signature, LicenseUtils.GetLicensingSecrets().PublicKey))
-            throw new InvalidLicenseSignatureException("License signature verification failed.");
-
-        // Calculate the SHA256 hash of the encrypted data and compare with the provided hash
-        var calculatedHash = SecurityUtils.CalculateSha256Hash(encryptedData);
-        if (!hash.SequenceEqual(calculatedHash))
-            throw new InvalidLicenseSignatureException("License data integrity check failed.");
-
-        // Decrypt the license data using AES
-        var decryptedData = SecurityUtils.DecryptData(encryptedData, aesKey);
-
-        // Deserialize the license object
-        var license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
-        if (license == null)
+        if (!LicenseValidator.VerifyLicenseData(licenseData, out var license, true) || license == null)
             throw new InvalidLicenseFormatException("Invalid license file format.");
+        
         // Set the current license based on type
         license = license.Type switch
         {
@@ -172,7 +156,7 @@ public static class LicenseManager
             _ => license
         };
 
-        // Validate the license
+        // Validate the license, VerifyLicenseData will be called again, but it's mandatory to keep LicenseValidator independent.
         await ValidateLicenseAsync(license!, licenseData, validationMode,
             validationParams ?? GetValidationParams(license!)!);
 
@@ -215,6 +199,7 @@ public static class LicenseManager
             await SendDisconnectAsync();
 
         HttpClient.Dispose();
+        Current = null;
     }
 
     // Helper methods
@@ -296,6 +281,9 @@ public static class LicenseManager
                 validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
             _ => false
         };
+        
+        if (isLicenseValid)
+            isLicenseValid = LicenseValidator.ValidateLicenseRules(license, validationParams);
 
         if (!isLicenseValid)
             throw new LicenseValidationException("License validation failed.");
@@ -415,40 +403,5 @@ public static class LicenseManager
         Array.Copy(aesKey, 0, combinedData, offset, aesKey.Length);
 
         return combinedData;
-    }
-
-    internal static (byte[] hash, byte[] signature, byte[] encryptedData, byte[] aesKey) SplitLicenseData(
-        byte[] licenseData)
-    {
-        var offset = 0;
-
-        // Extract hash
-        var hashLength = BitConverter.ToInt32(licenseData, offset);
-        offset += 4;
-        var hash = new byte[hashLength];
-        Array.Copy(licenseData, offset, hash, 0, hashLength);
-        offset += hashLength;
-
-        // Extract signature
-        var signatureLength = BitConverter.ToInt32(licenseData, offset);
-        offset += 4;
-        var signature = new byte[signatureLength];
-        Array.Copy(licenseData, offset, signature, 0, signatureLength);
-        offset += signatureLength;
-
-        // Extract encrypted data
-        var encryptedDataLength = BitConverter.ToInt32(licenseData, offset);
-        offset += 4;
-        var encryptedData = new byte[encryptedDataLength];
-        Array.Copy(licenseData, offset, encryptedData, 0, encryptedDataLength);
-        offset += encryptedDataLength;
-
-        // Extract AES key
-        var aesKeyLength = BitConverter.ToInt32(licenseData, offset);
-        offset += 4;
-        var aesKey = new byte[aesKeyLength];
-        Array.Copy(licenseData, offset, aesKey, 0, aesKeyLength);
-
-        return (hash, signature, encryptedData, aesKey);
     }
 }

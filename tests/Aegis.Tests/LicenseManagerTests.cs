@@ -166,7 +166,7 @@ public class LicenseManagerTests
         // Arrange
         var license = GenerateLicense();
         license.Features.Add("Feature1", true);
-        LicenseManager.Current = license;
+        SetLicense(license);
 
         // Act
         var isEnabled = LicenseManager.IsFeatureEnabled("Feature1");
@@ -180,7 +180,7 @@ public class LicenseManagerTests
     {
         // Arrange
         var license = GenerateLicense();
-        LicenseManager.Current = license;
+        SetLicense(license);
 
         // Act
         var isEnabled = LicenseManager.IsFeatureEnabled("NonExistingFeature");
@@ -195,7 +195,7 @@ public class LicenseManagerTests
         // Arrange
         var license = GenerateLicense();
         license.Features.Add("Feature1", false);
-        LicenseManager.Current = license;
+        SetLicense(license);
 
         // Act
         var isEnabled = LicenseManager.IsFeatureEnabled("Feature1");
@@ -210,7 +210,7 @@ public class LicenseManagerTests
         // Arrange
         var license = GenerateLicense();
         license.Features.Add("Feature1", false);
-        LicenseManager.Current = license;
+        SetLicense(license);
 
         // Act & Assert
         Assert.Throws<FeatureNotLicensedException>(() => LicenseManager.ThrowIfNotAllowed("Feature1"));
@@ -222,7 +222,7 @@ public class LicenseManagerTests
         // Arrange
         var license = GenerateLicense();
         license.Features.Add("Feature1", true);
-        LicenseManager.Current = license;
+        SetLicense(license);
 
         // Act & Assert (no exception should be thrown)
         LicenseManager.ThrowIfNotAllowed("Feature1");
@@ -329,7 +329,7 @@ public class LicenseManagerTests
         var publicKey = LicenseUtils.GetLicensingSecrets().PublicKey; // Get the public key
 
         // Act
-        var (hash, signature, _, _) = LicenseManager.SplitLicenseData(licenseData);
+        var (hash, signature, _, _) = LicenseValidator.SplitLicenseData(licenseData);
         var isValid = SecurityUtils.VerifySignature(hash, signature, publicKey); // Verify signature of hash
 
         // Assert
@@ -347,11 +347,17 @@ public class LicenseManagerTests
         var invalidSignature = new byte[16]; // Create a fake, invalid signature
 
         // Act
-        var (hash, _, _, _) = LicenseManager.SplitLicenseData(licenseData);
+        var (hash, _, _, _) = LicenseValidator.SplitLicenseData(licenseData);
 
         var isValid = SecurityUtils.VerifySignature(hash, invalidSignature, publicKey);
 
         // Assert
         Assert.False(isValid);
+    }
+
+    private static void SetLicense(BaseLicense license)
+    {
+        var currentProperty = typeof(LicenseManager).GetProperty("Current", BindingFlags.Public | BindingFlags.Static);
+        currentProperty!.SetValue(null, license);
     }
 }

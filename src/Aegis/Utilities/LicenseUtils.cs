@@ -48,6 +48,17 @@ public static class LicenseUtils
 
         return _licenseKeys;
     }
+    
+    /// <summary>
+    ///     Loads the licensing secrets from a configuration section.
+    /// </summary>
+    /// <param name="secrets">The licensing secrets.</param>
+    /// <returns>The licensing secrets.</returns>
+    public static LicensingSecrets LoadLicensingSecrets(LicensingSecrets secrets)
+    {
+        _licenseKeys = secrets;
+        return _licenseKeys;
+    }
 
     /// <summary>
     ///     Loads the encrypted licensing secrets from a file.

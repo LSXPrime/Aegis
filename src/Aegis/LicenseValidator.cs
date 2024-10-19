@@ -1,4 +1,6 @@
 ﻿using System.Text.Json;
+using Aegis.Exceptions;
+using Aegis.Interfaces;
 using Aegis.Models;
 using Aegis.Utilities;
 
@@ -6,6 +8,34 @@ namespace Aegis;
 
 public static class LicenseValidator
 {
+    private static readonly List<IValidationRule> ValidationRules = [];
+    private static readonly Dictionary<Type, IValidationRuleGroup> ValidationRuleGroups = new();
+    
+    public static void AddValidationRule(IValidationRule rule)
+    {
+        ValidationRules.Add(rule);
+    }
+
+    public static void RemoveValidationRule(IValidationRule rule)
+    {
+        ValidationRules.Remove(rule);
+    }
+
+    public static void AddValidationRuleGroup<T>(IValidationRuleGroup ruleGroup) where T : BaseLicense
+    {
+        ValidationRuleGroups.Add(typeof(T), ruleGroup);
+    }
+
+    public static void RemoveValidationRuleGroup<T>() where T : BaseLicense
+    {
+        ValidationRuleGroups.Remove(typeof(T));
+    }
+    
+    public static bool ValidateLicenseRules<T>(T license, Dictionary<string, string?>? validationParams = null) where T : BaseLicense
+    {
+        return ValidationRules.All(rule => rule.Validate(license, validationParams).IsValid) && ValidationRuleGroups.All(ruleGroup => ruleGroup.Value.Validate(license, validationParams).IsValid);
+    }
+    
     /// <summary>
     ///     Validates a standard license.
     /// </summary>
@@ -114,22 +144,34 @@ public static class LicenseValidator
     /// </summary>
     /// <param name="licenseData">The raw license data.</param>
     /// <param name="license">The deserialized license object if verification succeeds.</param>
+    /// <param name="throwOnFailure">True to throw an exception if verification fails.</param>
     /// <returns>True if the verification is successful, false otherwise.</returns>
-    internal static bool VerifyLicenseData(byte[] licenseData, out object? license)
+    internal static bool VerifyLicenseData(byte[] licenseData, out BaseLicense? license, bool throwOnFailure = false)
     {
         license = null;
 
         // Split the license data into its components
-        var (hash, signature, encryptedData, aesKey) = LicenseManager.SplitLicenseData(licenseData);
+        var (hash, signature, encryptedData, aesKey) = SplitLicenseData(licenseData);
 
         // Verify the RSA signature
         if (!SecurityUtils.VerifySignature(hash, signature, LicenseUtils.GetLicensingSecrets().PublicKey))
+        {
+            if (throwOnFailure)
+                throw new InvalidLicenseSignatureException("License signature verification failed.");
+
             return false;
+        }
+
 
         // Calculate the SHA256 hash of the encrypted data and compare with the provided hash
         var calculatedHash = SecurityUtils.CalculateSha256Hash(encryptedData);
         if (!hash.SequenceEqual(calculatedHash))
+        {
+            if (throwOnFailure)
+                throw new InvalidLicenseSignatureException("License data integrity check failed.");
+
             return false;
+        }
 
         // Decrypt the license data using AES
         var decryptedData = SecurityUtils.DecryptData(encryptedData, aesKey);
@@ -138,5 +180,40 @@ public static class LicenseValidator
         license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
 
         return license != null;
+    }
+    
+    internal static (byte[] hash, byte[] signature, byte[] encryptedData, byte[] aesKey) SplitLicenseData(
+        byte[] licenseData)
+    {
+        var offset = 0;
+
+        // Extract hash
+        var hashLength = BitConverter.ToInt32(licenseData, offset);
+        offset += 4;
+        var hash = new byte[hashLength];
+        Array.Copy(licenseData, offset, hash, 0, hashLength);
+        offset += hashLength;
+
+        // Extract signature
+        var signatureLength = BitConverter.ToInt32(licenseData, offset);
+        offset += 4;
+        var signature = new byte[signatureLength];
+        Array.Copy(licenseData, offset, signature, 0, signatureLength);
+        offset += signatureLength;
+
+        // Extract encrypted data
+        var encryptedDataLength = BitConverter.ToInt32(licenseData, offset);
+        offset += 4;
+        var encryptedData = new byte[encryptedDataLength];
+        Array.Copy(licenseData, offset, encryptedData, 0, encryptedDataLength);
+        offset += encryptedDataLength;
+
+        // Extract AES key
+        var aesKeyLength = BitConverter.ToInt32(licenseData, offset);
+        offset += 4;
+        var aesKey = new byte[aesKeyLength];
+        Array.Copy(licenseData, offset, aesKey, 0, aesKeyLength);
+
+        return (hash, signature, encryptedData, aesKey);
     }
 }

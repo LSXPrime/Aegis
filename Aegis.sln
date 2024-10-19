@@ -23,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aegis.Server.AspNetCore.Tes
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aegis.Sample.Console", "samples\Aegis.Sample.Console\Aegis.Sample.Console.csproj", "{4C205CAD-03F6-46B5-B963-C7F181E9CD10}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aegis.Sample.Validation.DateTime.Windows", "samples\Aegis.Sample.Validation.DateTime.Windows\Aegis.Sample.Validation.DateTime.Windows.csproj", "{89ED0BAB-6CE3-4162-BEE5-67408451CEF9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{4C205CAD-03F6-46B5-B963-C7F181E9CD10}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4C205CAD-03F6-46B5-B963-C7F181E9CD10}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4C205CAD-03F6-46B5-B963-C7F181E9CD10}.Release|Any CPU.Build.0 = Release|Any CPU
+		{89ED0BAB-6CE3-4162-BEE5-67408451CEF9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{89ED0BAB-6CE3-4162-BEE5-67408451CEF9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{89ED0BAB-6CE3-4162-BEE5-67408451CEF9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{89ED0BAB-6CE3-4162-BEE5-67408451CEF9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{5DAB6F09-4E96-4467-9D08-F24E07821B8B} = {9BB04FC3-081B-4A3F-B1BC-2D82C25F3975}
@@ -66,5 +72,6 @@ Global
 		{1ACAEA2F-1673-40D9-9040-7627C3D56AAC} = {3B4518B1-BE92-40B8-A2D1-ABB73DF6FAC6}
 		{910C60A8-D7D1-4CAA-94FF-E8ABE3CCB348} = {BFC52FAE-C62E-416F-88EE-43279AFE14E0}
 		{4C205CAD-03F6-46B5-B963-C7F181E9CD10} = {3B4518B1-BE92-40B8-A2D1-ABB73DF6FAC6}
+		{89ED0BAB-6CE3-4162-BEE5-67408451CEF9} = {3B4518B1-BE92-40B8-A2D1-ABB73DF6FAC6}
 	EndGlobalSection
 EndGlobal
