@@ -1,5 +1,6 @@
 ﻿using Aegis.Exceptions;
 using Aegis.Models;
+using Aegis.Models.Utils;
 using Aegis.Utilities;
 using Microsoft.Extensions.Configuration;
 
@@ -18,7 +19,6 @@ public class LicenseUtilsTests
         {
             { "LicensingSecrets:PublicKey", "TestPublicKey" },
             { "LicensingSecrets:PrivateKey", "TestPrivateKey" },
-            { "LicensingSecrets:EncryptionKey", "TestEncryptionKey" },
             { "LicensingSecrets:ApiKey", TestApiKey }
         };
         var configuration = new ConfigurationBuilder()
@@ -32,7 +32,6 @@ public class LicenseUtilsTests
         // Assert
         Assert.Equal("TestPublicKey", keys.PublicKey);
         Assert.Equal("TestPrivateKey", keys.PrivateKey);
-        Assert.Equal("TestEncryptionKey", keys.EncryptionKey);
         Assert.Equal(TestApiKey, keys.ApiKey);
     }
 
@@ -74,7 +73,6 @@ public class LicenseUtilsTests
         // Assert
         Assert.Equal(keys.PublicKey, loadedKeys.PublicKey);
         Assert.Equal(keys.PrivateKey, loadedKeys.PrivateKey);
-        Assert.Equal(keys.EncryptionKey, loadedKeys.EncryptionKey);
         Assert.Equal(keys.ApiKey, loadedKeys.ApiKey);
 
         // Clean up
@@ -91,7 +89,6 @@ public class LicenseUtilsTests
         Assert.NotNull(keys);
         Assert.NotEmpty(keys.PublicKey);
         Assert.NotEmpty(keys.PrivateKey);
-        Assert.NotEmpty(keys.EncryptionKey);
         Assert.NotEmpty(keys.ApiKey);
         Assert.True(File.Exists(filePath));
 

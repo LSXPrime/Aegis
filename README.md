@@ -19,6 +19,7 @@ with your existing applications.
   from tampering and unauthorized modifications.
 - **License Validation:** Offers both online and offline license validation modes, ensuring flexibility even in
   scenarios without internet connectivity.
+- **Custom Validation Rules:** Define and apply custom validation rules using `IValidationRule` and `IValidationRuleGroup` for tailored license requirements.
 - **Easy Integration:** Provides a simple and intuitive API for generating, saving, loading, validating, and managing
   licenses within your .NET applications.
 - **Ease of Use:** Provides a fluent API for building and managing licenses, simplifying integration into existing
@@ -179,17 +180,17 @@ adapt the provided code to your specific needs.
 
 #### Aegis.Server NuGet Package
 
-1. **Install the Aegis NuGet package:**
+1. **Install the Aegis.Server NuGet package:**
    ```
    Install-Package Aegis.Server
    ```
 2. **Integrate Aegis.Server into an ASP.NET Core application:**
-   ```
+   ```csharp
    // In your Startup.cs file:
    services.AddAegisServer();
    ```
-3. **Inherit you DbContext from AegisDbContext class:**
-   ```
+3. **Inherit your DbContext from AegisDbContext class:**
+   ```csharp
    using Aegis.Server.Data;
 
    public class ApplicationDbContext(DbContextOptions<AegisDbContext> options) : AegisDbContext(options)
@@ -198,7 +199,7 @@ adapt the provided code to your specific needs.
    }
    ```
 4. **Inject LicenseService in your Controller:**
-   ```
+   ```csharp
    using Aegis.Server.Services;
 
    public class LicensesController(LicenseService licenseService)
@@ -268,6 +269,100 @@ adapt the provided code to your specific needs.
    Aegis.Server monitors heartbeats and will automatically disconnect users if a heartbeat is not received within a
    specified timeout period.
 
+### Custom Validation Rules
+
+Aegis allows you to implement custom validation rules to enforce specific licensing requirements beyond the built-in validation logic. This provides greater flexibility and control over your licensing system.
+
+1. **Implementing a Custom Rule**
+    
+    To create a custom validation rule, implement the `IValidationRule` interface:
+
+    ```csharp
+    using Aegis.Interfaces;
+    using Aegis.Models;
+    using Aegis.Models.Utils;
+    
+    public class MyCustomRule : IValidationRule
+    {
+        public LicenseValidationResult<T> Validate<T>(T license, Dictionary<string, string?>? parameters) where T : BaseLicense
+        {
+            // Your custom validation logic here.
+            // Access license properties, parameters, external resources, etc.
+    
+            if (/* Validation succeeds */)
+            {
+                return new LicenseValidationResult<T>(true, license);
+            }
+            else
+            {
+                // Provide an appropriate exception for validation failures.
+                return new LicenseValidationResult<T>(false, null, new LicenseValidationException("Custom validation failed.")); 
+            }
+        }
+    }
+    ```
+
+2. **Registering the Rule**
+
+    Once you have implemented your custom rule, register it with the `LicenseValidator`:
+ 
+    ```csharp
+    LicenseValidator.AddValidationRule(new MyCustomRule());
+    ```
+
+3. **Example: Advanced Hardware Validation for Node-Locked Licenses**
+
+    This example demonstrates a more robust hardware validation for node-locked licenses, considering multiple hardware factors.
+
+    ```csharp
+    using Aegis.Interfaces;
+    using Aegis.Models;
+    using Aegis.Models.Utils;
+    using Aegis.Utilities;
+    
+    public class AdvancedHardwareRule : IValidationRule
+    {
+        public LicenseValidationResult<T> Validate<T>(T license, Dictionary<string, string?>? parameters) where T : BaseLicense
+        {
+            if (license is not NodeLockedLicense nodeLockedLicense)
+                return new LicenseValidationResult<T>(true, license);
+    
+            // Implement your logic to combine and validate multiple hardware factors
+            // You can use HardwareUtils.GetHardwareId() as a starting point and add
+            // more specific checks for CPU ID, motherboard serial number, etc.
+            string combinedHardwareId = GenerateCombinedHardwareId();
+    
+            if (combinedHardwareId != nodeLockedLicense.HardwareId)
+            {
+                return new LicenseValidationResult<T>(false, null, new HardwareMismatchException("Hardware mismatch detected."));
+            }
+    
+            return new LicenseValidationResult<T>(true, license);
+        }
+    
+        // Replace with your actual implementation to generate a combined hardware ID.
+        private string GenerateCombinedHardwareId()
+        {
+            // ... your logic to combine multiple hardware factors ...
+            return ""; // Replace with the generated combined ID
+        }
+    }
+    ```
+
+    **Usage:**
+    
+    ```csharp
+    LicenseValidator.AddValidationRule(new AdvancedHardwareRule());
+    
+    // ... during license loading ...
+    var license = await LicenseManager.LoadLicenseAsync("license.bin"); 
+    ```
+    
+    This example showcases how you can create a custom rule to enhance the security of your node-locked licenses by validating against multiple hardware identifiers.
+
+    You can adapt this example and implement your own logic for combining and validating different hardware factors to suit your specific needs. Remember to provide clear documentation and error messages within your custom rules to make them easy to understand and maintain.
+
+
 ### Architecture
 
 **Aegis Licensing System Architecture:**
@@ -283,7 +378,7 @@ application) and the Aegis.Server backend service.
   protecting this file).
 - **License Loading:** The client application loads the license file using `LicenseManager.LoadLicenseAsync()`.
 - **Validation:**
-    - **Offline Validation:** The license is validated locally using cryptographic signatures and checksums.
+    - **Offline Validation:** The license is validated locally using cryptographic signatures, checksums, and any registered custom validation rules.
     - **Online Validation:** For floating and concurrent licenses, the client library connects to the
       Aegis.Server.AspNetCore to validate the license and manage activations.
 - **Feature Access:** The application checks for enabled features using `LicenseManager.IsFeatureEnabled()`.
@@ -292,7 +387,7 @@ application) and the Aegis.Server backend service.
 
 **Server-Side:**
 
-- **Licence Management:** The Aegis.Server backend service manages licenses and activations.
+- **License Management:** The Aegis.Server backend service manages licenses and activations.
 - **Heartbeat Monitor:** A background service monitors heartbeat requests from clients and automatically disconnects
   inactive concurrent users.
 
@@ -344,6 +439,3 @@ Contributions to Aegis are welcome!
 ### License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) file for details.
-
-
-

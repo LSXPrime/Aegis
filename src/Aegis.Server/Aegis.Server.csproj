@@ -16,7 +16,8 @@
         <PackageIcon>Aegis.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageTags>license, key, licensing, protect, shield</PackageTags>
-        <Version>1.1.0</Version>
+        <Version>1.2.0</Version>
+        <PackageReleaseNotes>https://github.com/LSXPrime/Aegis/releases</PackageReleaseNotes>
     </PropertyGroup>
 
     <ItemGroup>

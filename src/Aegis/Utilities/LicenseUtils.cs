@@ -2,7 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using Aegis.Exceptions;
-using Aegis.Models;
+using Aegis.Models.Utils;
 using Microsoft.Extensions.Configuration;
 
 namespace Aegis.Utilities;
@@ -42,7 +42,6 @@ public static class LicenseUtils
         {
             PublicKey = config.GetSection("PublicKey").Value!,
             PrivateKey = config.GetSection("PrivateKey").Value!,
-            EncryptionKey = config.GetSection("EncryptionKey").Value!,
             ApiKey = config.GetSection("ApiKey").Value!
         };
 
@@ -108,7 +107,6 @@ public static class LicenseUtils
             {
                 PublicKey = Convert.ToBase64String(rsa.ExportRSAPublicKey()),
                 PrivateKey = Convert.ToBase64String(rsa.ExportRSAPrivateKey()),
-                EncryptionKey = Encoding.UTF8.GetString(SHA256.HashData(Encoding.UTF8.GetBytes(key))),
                 ApiKey = apiKey
             };
             var json = JsonSerializer.Serialize(keys);

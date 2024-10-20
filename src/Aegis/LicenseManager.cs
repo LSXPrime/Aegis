@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
@@ -63,8 +63,9 @@ public static class LicenseManager
     /// <typeparam name="T">The type of license to save.</typeparam>
     /// <param name="license">The license object to save.</param>
     /// <param name="filePath">The path to the file to save the license to.</param>
+    /// <param name="privateKey">The private key for signing.</param>
     /// <exception cref="ArgumentNullException">Thrown if the license or file path is null.</exception>
-    public static void SaveLicense<T>(T license, string filePath) where T : BaseLicense
+    public static void SaveLicense<T>(T license, string filePath, string? privateKey = null) where T : BaseLicense
     {
         ArgumentNullException.ThrowIfNull(license);
         ArgumentNullException.ThrowIfNull(filePath);
@@ -73,7 +74,7 @@ public static class LicenseManager
             throw new ArgumentException("Invalid file path.", nameof(filePath));
 
         // Save the combined data to the specified file
-        File.WriteAllBytes(filePath, SaveLicense(license));
+        File.WriteAllBytes(filePath, SaveLicense(license, privateKey));
     }
 
     /// <summary>
@@ -81,9 +82,10 @@ public static class LicenseManager
     /// </summary>
     /// <typeparam name="T">The type of license to save.</typeparam>
     /// <param name="license">The license object to save.</param>
+    /// <param name="privateKey">The private key for signing.</param>
     /// <returns>A byte array containing the encrypted and signed license data.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the license is null.</exception>
-    public static byte[] SaveLicense<T>(T license) where T : BaseLicense
+    public static byte[] SaveLicense<T>(T license, string? privateKey = null) where T : BaseLicense
     {
         ArgumentNullException.ThrowIfNull(license);
 
@@ -101,7 +103,7 @@ public static class LicenseManager
         var hash = SecurityUtils.CalculateSha256Hash(encryptedData);
 
         // Sign the hash using RSA private key
-        var signature = SecurityUtils.SignData(hash, LicenseUtils.GetLicensingSecrets().PrivateKey);
+        var signature = SecurityUtils.SignData(hash, privateKey ?? LicenseUtils.GetLicensingSecrets().PrivateKey);
 
         // Combine hash, signature, encrypted data, and AES key
         return CombineLicenseData(hash, signature, encryptedData, aesKey);
