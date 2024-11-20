@@ -4,8 +4,8 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <AssemblyVersion>1.1.0</AssemblyVersion>
-        <FileVersion>1.1.0</FileVersion>
+        <AssemblyVersion>1.3.0</AssemblyVersion>
+        <FileVersion>1.3.0</FileVersion>
         <Title>Aegis.Server</Title>
         <Description>Aegis is a robust and flexible .NET licensing library that simplifies the implementation of various licensing models for your applications. It offers strong security features, both online and offline validation, and easy integration with your existing projects. Securely manage your software licenses with Aegis.</Description>
         <Copyright>Copyright (c) 2024 LSXPrime</Copyright>
@@ -16,7 +16,7 @@
         <PackageIcon>Aegis.png</PackageIcon>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageTags>license, key, licensing, protect, shield</PackageTags>
-        <Version>1.2.0</Version>
+        <Version>1.3.0</Version>
         <PackageReleaseNotes>https://github.com/LSXPrime/Aegis/releases</PackageReleaseNotes>
     </PropertyGroup>
 

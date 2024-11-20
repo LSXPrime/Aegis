@@ -1,10 +1,13 @@
-﻿using Aegis.Models;
+﻿using Aegis.Interfaces;
+using Aegis.Models;
 using Aegis.Utilities;
 
 namespace Aegis;
 
 public static class LicenseGenerator
 {
+    private static IHardwareIdentifier _hardwareIdentifier = new DefaultHardwareIdentifier();
+    
     /// <summary>
     ///     Generates a standard license.
     /// </summary>
@@ -35,7 +38,7 @@ public static class LicenseGenerator
     /// <returns>A new NodeLockedLicense object.</returns>
     public static NodeLockedLicense GenerateNodeLockedLicense(string? hardwareId = null)
     {
-        hardwareId ??= HardwareUtils.GetHardwareId();
+        hardwareId ??= _hardwareIdentifier.GetHardwareIdentifier();
         return new NodeLockedLicense(hardwareId);
     }
 
@@ -71,4 +74,8 @@ public static class LicenseGenerator
     {
         return new ConcurrentLicense(userName, maxActiveUsersCount);
     }
+    
+    
+    
+    internal static void SetHardwareIdentifier(IHardwareIdentifier hardwareIdentifier) => _hardwareIdentifier = hardwareIdentifier;
 }

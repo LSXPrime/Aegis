@@ -157,7 +157,7 @@ public class LicenseValidatorTests
     {
         // Arrange
         LoadSecretKeys();
-        var hardwareId = HardwareUtils.GetHardwareId(); 
+        var hardwareId = new DefaultHardwareIdentifier().GetHardwareIdentifier();
         var license = GenerateNodeLockedLicense(hardwareId);
         var licenseData = LicenseManager.SaveLicense(license);
 

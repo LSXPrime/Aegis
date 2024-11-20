@@ -1,10 +1,13 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Aegis.Enums;
 using Aegis.Exceptions;
+using Aegis.Interfaces;
 using Aegis.Models;
+using Aegis.Serialization;
 using Aegis.Utilities;
 
 [assembly: InternalsVisibleTo("Aegis.Tests")]
@@ -21,6 +24,8 @@ public static class LicenseManager
     private static readonly string DisconnectEndpoint = $"{_serverBaseEndpoint}/disconnect";
     private static TimeSpan _heartbeatInterval = TimeSpan.FromMinutes(5); // Should be less than server timeout
     private static Timer? _heartbeatTimer;
+    private static ILicenseSerializer _serializer = new JsonLicenseSerializer();
+    private static bool _builtInValidation = true;
     public static BaseLicense? Current { get; private set; }
 
     /// <summary>
@@ -58,14 +63,44 @@ public static class LicenseManager
     }
 
     /// <summary>
+    ///     Sets the serializer for license serialization.
+    /// </summary>
+    /// <param name="serializer">The serializer that implements the <see cref="ILicenseSerializer"/> interface.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the serializer is null.</exception>
+    public static void SetSerializer(ILicenseSerializer serializer)
+    {
+        ArgumentNullException.ThrowIfNull(serializer);
+        _serializer = serializer;
+        LicenseValidator.SetSerializer(_serializer);
+    }
+    
+    /// <summary>
+    ///     Sets the hardware identifier for license validation and generation.
+    /// </summary>
+    /// <param name="identifier">The hardware identifier that implements the <see cref="IHardwareIdentifier"/> interface.</param>
+    /// <exception cref="ArgumentNullException">Thrown if the identifier is null.</exception>
+    public static void SetHardwareIdentifier(IHardwareIdentifier identifier)
+    {
+        ArgumentNullException.ThrowIfNull(identifier);
+        LicenseValidator.SetHardwareIdentifier(identifier);
+        LicenseGenerator.SetHardwareIdentifier(identifier);
+    }
+
+    /// <summary>
+    ///     Sets whether to use built-in validation or not.
+    /// </summary>
+    /// <param name="value">Whether to use built-in validation or not.</param>
+    public static void SetBuiltInValidation(bool value) => _builtInValidation = value;
+
+    /// <summary>
     ///     Saves a license to a file.
     /// </summary>
     /// <typeparam name="T">The type of license to save.</typeparam>
     /// <param name="license">The license object to save.</param>
     /// <param name="filePath">The path to the file to save the license to.</param>
-    /// <param name="privateKey">The private key for signing.</param>
+    /// <param name="secretKey">The private key for signing.</param>
     /// <exception cref="ArgumentNullException">Thrown if the license or file path is null.</exception>
-    public static void SaveLicense<T>(T license, string filePath, string? privateKey = null) where T : BaseLicense
+    public static void SaveLicenseToPath<T>(T license, string filePath, string? secretKey = null) where T : BaseLicense
     {
         ArgumentNullException.ThrowIfNull(license);
         ArgumentNullException.ThrowIfNull(filePath);
@@ -74,7 +109,7 @@ public static class LicenseManager
             throw new ArgumentException("Invalid file path.", nameof(filePath));
 
         // Save the combined data to the specified file
-        File.WriteAllBytes(filePath, SaveLicense(license, privateKey));
+        File.WriteAllBytes(filePath, SaveLicense(license, secretKey));
     }
 
     /// <summary>
@@ -90,8 +125,7 @@ public static class LicenseManager
         ArgumentNullException.ThrowIfNull(license);
 
         // Serialize the license object
-        var licenseData =
-            JsonSerializer.SerializeToUtf8Bytes(license, new JsonSerializerOptions { WriteIndented = true });
+        var licenseData = Encoding.UTF8.GetBytes(_serializer.Serialize(license));
 
         // Generate a unique AES secret key
         var aesKey = SecurityUtils.GenerateAesKey();
@@ -145,7 +179,7 @@ public static class LicenseManager
     {
         if (!LicenseValidator.VerifyLicenseData(licenseData, out var license, true) || license == null)
             throw new InvalidLicenseFormatException("Invalid license file format.");
-        
+
         // Set the current license based on type
         license = license.Type switch
         {
@@ -185,7 +219,7 @@ public static class LicenseManager
         if (!IsFeatureEnabled(featureName))
             throw new FeatureNotLicensedException($"Feature '{featureName}' is not allowed in your licensing model.");
     }
-    
+
     /// <summary>
     ///     Closes connection to the licensing server and releases any resources.
     /// </summary>
@@ -205,7 +239,7 @@ public static class LicenseManager
     }
 
     // Helper methods
-    
+
     /// <summary>
     ///     Validates the license asynchronously.
     /// </summary>
@@ -269,24 +303,28 @@ public static class LicenseManager
     private static void ValidateLicenseOffline(BaseLicense license, byte[] licenseData,
         Dictionary<string, string?>? validationParams = null)
     {
-        var isLicenseValid = license.Type switch
+        var isLicenseValid = false;
+        if (_builtInValidation)
         {
-            LicenseType.Standard => LicenseValidator.ValidateStandardLicense(licenseData,
-                validationParams?["UserName"]!, validationParams?["SerialNumber"]!),
-            LicenseType.Trial => LicenseValidator.ValidateTrialLicense(licenseData),
-            LicenseType.NodeLocked => LicenseValidator.ValidateNodeLockedLicense(licenseData,
-                validationParams?["HardwareId"]),
-            LicenseType.Subscription => LicenseValidator.ValidateSubscriptionLicense(licenseData),
-            LicenseType.Floating => LicenseValidator.ValidateFloatingLicense(licenseData,
-                validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
-            LicenseType.Concurrent => LicenseValidator.ValidateConcurrentLicense(licenseData,
-                validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
-            _ => false
-        };
-        
-        if (isLicenseValid)
-            isLicenseValid = LicenseValidator.ValidateLicenseRules(license, validationParams);
+            isLicenseValid = license.Type switch
+            {
+                LicenseType.Standard => LicenseValidator.ValidateStandardLicense(licenseData,
+                    validationParams?["UserName"]!, validationParams?["SerialNumber"]!),
+                LicenseType.Trial => LicenseValidator.ValidateTrialLicense(licenseData),
+                LicenseType.NodeLocked => LicenseValidator.ValidateNodeLockedLicense(licenseData,
+                    validationParams?["HardwareId"]),
+                LicenseType.Subscription => LicenseValidator.ValidateSubscriptionLicense(licenseData),
+                LicenseType.Floating => LicenseValidator.ValidateFloatingLicense(licenseData,
+                    validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
+                LicenseType.Concurrent => LicenseValidator.ValidateConcurrentLicense(licenseData,
+                    validationParams?["UserName"]!, int.Parse(validationParams?["MaxActiveUsersCount"]!)),
+                _ => false
+            };
+        }
 
+        if (isLicenseValid || !_builtInValidation)
+            isLicenseValid = LicenseValidator.ValidateLicenseRules(license, validationParams);
+        
         if (!isLicenseValid)
             throw new LicenseValidationException("License validation failed.");
     }
@@ -365,7 +403,7 @@ public static class LicenseManager
             throw new HeartbeatException(
                 $"Concurrent user disconnect failed: {response.StatusCode} - {await response.Content.ReadAsStringAsync()}");
     }
-    
+
     private static byte[] CombineLicenseData(byte[] hash, byte[] signature, byte[] encryptedData, byte[] aesKey)
     {
         var combinedData = new byte[

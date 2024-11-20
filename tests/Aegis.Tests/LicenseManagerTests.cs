@@ -40,7 +40,7 @@ public class LicenseManagerTests
         var filePath = Path.GetTempFileName(); // Use a temporary file
 
         // Act
-        LicenseManager.SaveLicense(license, filePath);
+        LicenseManager.SaveLicenseToPath(license, filePath);
 
         // Assert
         Assert.True(File.Exists(filePath));
@@ -69,7 +69,7 @@ public class LicenseManagerTests
         var license = GenerateLicense();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => LicenseManager.SaveLicense(license, null!));
+        Assert.Throws<ArgumentNullException>(() => LicenseManager.SaveLicenseToPath(license, null!));
     }
 
     [Fact]
@@ -80,7 +80,7 @@ public class LicenseManagerTests
         var license = GenerateLicense();
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => LicenseManager.SaveLicense(license, ""));
+        Assert.Throws<ArgumentException>(() => LicenseManager.SaveLicenseToPath(license, ""));
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class LicenseManagerTests
         const string filePath = "Invalid/File/Path"; // This should be an invalid path on most systems
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => LicenseManager.SaveLicense(license, filePath));
+        Assert.Throws<ArgumentException>(() => LicenseManager.SaveLicenseToPath(license, filePath));
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class LicenseManagerTests
         LoadSecretKeys();
         var license = GenerateLicense();
         var filePath = Path.GetTempFileName();
-        LicenseManager.SaveLicense(license, filePath);
+        LicenseManager.SaveLicenseToPath(license, filePath);
 
         // Act
         var loadedLicense = await LicenseManager.LoadLicenseAsync(filePath);

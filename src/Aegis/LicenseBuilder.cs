@@ -79,7 +79,7 @@ public static class LicenseBuilder
     /// <returns>The license object that was saved.</returns>
     public static BaseLicense SaveLicense(this BaseLicense baseLicense, string filePath)
     {
-        LicenseManager.SaveLicense(baseLicense, filePath);
+        LicenseManager.SaveLicenseToPath(baseLicense, filePath);
         return baseLicense;
     }
 }

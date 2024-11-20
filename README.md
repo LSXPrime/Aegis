@@ -271,11 +271,12 @@ adapt the provided code to your specific needs.
 
 ### Custom Validation Rules
 
-Aegis allows you to implement custom validation rules to enforce specific licensing requirements beyond the built-in validation logic. This provides greater flexibility and control over your licensing system.
+Aegis allows you to implement custom validation rules to enforce specific licensing requirements beyond the built-in validation logic. 
+This provides greater flexibility and control over your licensing system.
 
 1. **Implementing a Custom Rule**
-    
-    To create a custom validation rule, implement the `IValidationRule` interface:
+
+   To create a custom validation rule, implement the `IValidationRule` interface:
 
     ```csharp
     using Aegis.Interfaces;
@@ -304,15 +305,16 @@ Aegis allows you to implement custom validation rules to enforce specific licens
 
 2. **Registering the Rule**
 
-    Once you have implemented your custom rule, register it with the `LicenseValidator`:
- 
+   Once you have implemented your custom rule, register it with the `LicenseValidator`:
+
     ```csharp
     LicenseValidator.AddValidationRule(new MyCustomRule());
     ```
 
 3. **Example: Advanced Hardware Validation for Node-Locked Licenses**
 
-    This example demonstrates a more robust hardware validation for node-locked licenses, considering multiple hardware factors.
+   This example demonstrates a more robust hardware validation for node-locked licenses, considering multiple hardware
+   factors.
 
     ```csharp
     using Aegis.Interfaces;
@@ -349,19 +351,100 @@ Aegis allows you to implement custom validation rules to enforce specific licens
     }
     ```
 
-    **Usage:**
-    
+   **Usage:**
+
     ```csharp
     LicenseValidator.AddValidationRule(new AdvancedHardwareRule());
     
     // ... during license loading ...
     var license = await LicenseManager.LoadLicenseAsync("license.bin"); 
     ```
-    
-    This example showcases how you can create a custom rule to enhance the security of your node-locked licenses by validating against multiple hardware identifiers.
 
-    You can adapt this example and implement your own logic for combining and validating different hardware factors to suit your specific needs. Remember to provide clear documentation and error messages within your custom rules to make them easy to understand and maintain.
+   This example showcases how you can create a custom rule to enhance the security of your node-locked licenses by
+   validating against multiple hardware identifiers.
 
+   You can adapt this example and implement your own logic for combining and validating different hardware factors to
+   suit your specific needs. Remember to provide clear documentation and error messages within your custom rules to make
+   them easy to understand and maintain.
+
+### Custom Hardware Identification
+
+By default, Aegis uses a `DefaultHardwareIdentifier` that combines Machine Name, User Name, OS Version, and MAC Address.
+To implement a custom hardware identifier:
+
+1. **Create a class that implements `IHardwareIdentifier`:**
+
+   ```csharp
+   using Aegis.Interfaces;
+
+   public class MyCustomHardwareIdentifier : IHardwareIdentifier
+   {
+       public string GetHardwareIdentifier()
+       {
+           // Your custom logic to retrieve the hardware identifier.
+           // Example: CPU ID, Motherboard serial number, etc.
+           return "..."; 
+       }
+
+       public bool ValidateHardwareIdentifier(string hardwareIdentifier)
+       {
+           // Your custom logic to validate the hardware identifier.
+           return GetHardwareIdentifier() == hardwareIdentifier;
+       }
+   }
+   ```
+
+2. **Set the custom identifier:**
+
+   ```csharp
+   LicenseManager.SetHardwareIdentifier(new MyCustomHardwareIdentifier());
+   ```
+
+### Custom Serialization
+
+Aegis uses a `JsonLicenseSerializer` by default. To implement a custom serializer:
+
+1. **Create a class that implements `ILicenseSerializer`:**
+
+   ```csharp
+   using Aegis.Interfaces;
+   using Aegis.Models;
+
+   public class MyCustomSerializer : ILicenseSerializer
+   {
+       public string Serialize(BaseLicense license)
+       {
+           // Your custom serialization logic.
+           // Example: XML serialization, binary serialization, etc.
+           return "...";
+       }
+
+       public BaseLicense? Deserialize(string data)
+       {
+           // Your custom deserialization logic.
+           return ...;
+       }
+   }
+   ```
+
+2. **Set the custom serializer:**
+
+   ```csharp
+   LicenseManager.SetSerializer(new MyCustomSerializer());
+   ```
+
+### Disabling Built-in Validation
+
+You can disable Aegis's built-in validation logic if you want to rely solely on your custom validation rules or have a
+different validation process.
+
+```csharp
+LicenseManager.SetBuiltInValidation(false); 
+```
+
+This will prevent `LicenseManager` from performing its default validation checks for license type, expiry date, and
+other built-in criteria. You will be responsible for implementing all necessary validation logic in your custom rules or
+through other means.
 
 ### Architecture
 

@@ -1,7 +1,9 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using Aegis.Exceptions;
 using Aegis.Interfaces;
 using Aegis.Models;
+using Aegis.Serialization;
 using Aegis.Utilities;
 
 namespace Aegis;
@@ -10,6 +12,19 @@ public static class LicenseValidator
 {
     private static readonly List<IValidationRule> ValidationRules = [];
     private static readonly Dictionary<Type, IValidationRuleGroup> ValidationRuleGroups = new();
+    private static ILicenseSerializer _serializer = new JsonLicenseSerializer();
+    private static IHardwareIdentifier _hardwareIdentifier = new DefaultHardwareIdentifier();
+    
+    internal static void SetSerializer(ILicenseSerializer serializer)
+    {
+        ArgumentNullException.ThrowIfNull(serializer);
+        _serializer = serializer;
+    }
+    
+    internal static void SetHardwareIdentifier(IHardwareIdentifier hardwareIdentifier)
+    {
+        _hardwareIdentifier = hardwareIdentifier;
+    }
     
     public static void AddValidationRule(IValidationRule rule)
     {
@@ -86,7 +101,7 @@ public static class LicenseValidator
 
         return licenseObj is NodeLockedLicense license &&
                (!license.ExpirationDate.HasValue || !(license.ExpirationDate < DateTime.UtcNow)) &&
-               HardwareUtils.ValidateHardwareId(hardwareId ?? license.HardwareId);
+               _hardwareIdentifier.ValidateHardwareIdentifier(hardwareId ?? license.HardwareId);
     }
 
     /// <summary>
@@ -177,7 +192,7 @@ public static class LicenseValidator
         var decryptedData = SecurityUtils.DecryptData(encryptedData, aesKey);
 
         // Deserialize the license object
-        license = JsonSerializer.Deserialize<BaseLicense>(decryptedData);
+        license = _serializer.Deserialize(Encoding.UTF8.GetString(decryptedData));
 
         return license != null;
     }
