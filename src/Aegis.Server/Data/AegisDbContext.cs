@@ -1,5 +1,6 @@
 ﻿using Aegis.Server.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Aegis.Server.Data;
 
@@ -24,6 +25,14 @@ public class AegisDbContext(DbContextOptions options) : DbContext(options)
         // LicenseFeature (Many-to-Many) - Configure composite key
         modelBuilder.Entity<LicenseFeature>()
             .HasKey(lf => new { lf.ProductId, lf.FeatureId });
+        
+        /*
+        // Configure LicenseFeature entity
+        modelBuilder.Entity<LicenseFeature>()
+            .Property(lf => lf.Data)
+          //  .HasColumnType("VARBINARY(MAX)")
+            .HasConversion(new ValueConverter<Models.Feature, byte[]>(f => f.AsByteArray(), b => Models.Feature.FromByteArray(b)) );
+        */
 
         // LicenseFeature - Product (One-to-Many)
         modelBuilder.Entity<LicenseFeature>()

@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using Aegis.Enums;
 using Aegis.Exceptions;
-using Aegis.Models;
+using Aegis.Models.License;
 
 namespace Aegis.Serialization.Converters;
 

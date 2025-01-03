@@ -1,6 +1,7 @@
 ﻿using Aegis.Enums;
 using Aegis.Exceptions;
 using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Utilities;
 
 namespace Aegis.Tests;
@@ -24,8 +25,8 @@ public class LicenseBuilderTests
         if (license.Type != LicenseType.Trial)
             license.WithExpiryDate(DateTime.UtcNow.AddDays(10));
 
-        return license.WithIssuer("Aegis Software").WithFeatures(new Dictionary<string, bool>
-            { { "Feature1", true }, { "Feature2", false } });
+        return license.WithIssuer("Aegis Software").WithFeatures(new Dictionary<string, Feature>
+            { { "Feature1", Feature.FromBool(true) }, { "Feature2", Feature.FromBool(false) } });
     }
 
     [Fact]
@@ -60,11 +61,11 @@ public class LicenseBuilderTests
         var baseLicense = CreateBaseLicense();
 
         // Act
-        var license = baseLicense.WithFeature("TestFeature", true);
+        var license = baseLicense.WithFeature("TestFeature", Feature.FromBool(true));
 
         // Assert
         Assert.True(license.Features.ContainsKey("TestFeature"));
-        Assert.True(license.Features["TestFeature"]);
+        Assert.True(license.Features["TestFeature"].AsBool());
     }
 
     [Fact]
@@ -72,14 +73,14 @@ public class LicenseBuilderTests
     {
         // Arrange
         var baseLicense = CreateBaseLicense();
-        baseLicense.Features.Add("TestFeature", false);
+        baseLicense.Features.Add("TestFeature", Feature.FromBool(false));
 
         // Act
-        var license = baseLicense.WithFeature("TestFeature", true);
+        var license = baseLicense.WithFeature("TestFeature", Feature.FromBool(true));
 
         // Assert
         Assert.True(license.Features.ContainsKey("TestFeature"));
-        Assert.True(license.Features["TestFeature"]);
+        Assert.True(license.Features["TestFeature"].AsBool());
     }
 
     [Fact]
@@ -87,10 +88,10 @@ public class LicenseBuilderTests
     {
         // Arrange
         var baseLicense = CreateBaseLicense();
-        var features = new Dictionary<string, bool>
+        var features = new Dictionary<string, Feature>
         {
-            { "Feature1", true },
-            { "Feature2", false }
+            { "Feature1", Feature.FromBool(true) },
+            { "Feature2", Feature.FromBool(false) }
         };
 
         // Act
@@ -99,7 +100,6 @@ public class LicenseBuilderTests
         // Assert
         Assert.Equal(features, license.Features);
     }
-
     [Fact]
     public void WithIssuer_SetsIssuerCorrectly()
     {
@@ -145,15 +145,23 @@ public class LicenseBuilderTests
         var licenseData = await File.ReadAllBytesAsync(filePath);
         Assert.NotEmpty(licenseData);
         var license = await LicenseManager.LoadLicenseAsync(licenseData);
-        Assert.NotNull(license);
-        Assert.Equal(baseLicense.Type, license.Type);
-        Assert.Equal(baseLicense.Issuer, license.Issuer);
-        Assert.Equal(baseLicense.LicenseKey, license.LicenseKey);
-        Assert.Equal(baseLicense.Features, license.Features);
-        Assert.Equal(baseLicense.ExpirationDate, license.ExpirationDate);
-        Assert.Equal(baseLicense.IssuedOn, license.IssuedOn);
-        Assert.Equal(baseLicense.LicenseId, license.LicenseId);
+        Assert.Equal(LicenseStatus.Valid, license.Status);
+        Assert.NotNull(license.License);
+        Assert.Equal(baseLicense.Type, license.License.Type);
+        Assert.Equal(baseLicense.Issuer, license.License.Issuer);
+        Assert.Equal(baseLicense.LicenseKey, license.License.LicenseKey);
+        Assert.Equal(baseLicense.ExpirationDate, license.License.ExpirationDate);
+        Assert.Equal(baseLicense.IssuedOn, license.License.IssuedOn);
+        Assert.Equal(baseLicense.LicenseId, license.License.LicenseId);
+        foreach (var expectedFeature in baseLicense.Features)
+        {
+            Assert.True(license.License.Features.ContainsKey(expectedFeature.Key), $"Feature '{expectedFeature.Key}' not found in loaded license.");
+            var actualFeatureValue = license.License.Features[expectedFeature.Key];
 
+            Assert.Equal(expectedFeature.Value.Type, actualFeatureValue.Type);
+            Assert.Equal(expectedFeature.Value.Data, actualFeatureValue.Data);
+        }
+        
         // Clean up
         File.Delete(filePath);
     }

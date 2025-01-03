@@ -1,5 +1,4 @@
 ﻿using Aegis.Enums;
-using Aegis.Server.Enums;
 
 namespace Aegis.Server.Entities;
 
@@ -11,7 +10,7 @@ public class License
     public DateTime IssuedOn { get; init; } = DateTime.UtcNow;
     public DateTime? ExpirationDate { get; set; }
     public string Issuer { get; set; } = string.Empty;
-    public LicenseStatus Status { get; set; } = LicenseStatus.Active;
+    public LicenseStatus Status { get; set; } = LicenseStatus.Valid;
     public string IssuedTo { get; init; } = string.Empty;
     public int? MaxActiveUsersCount { get; init; }
     public int? ActiveUsersCount { get; set; }

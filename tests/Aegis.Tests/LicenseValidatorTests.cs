@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
-using Aegis.Models;
+using Aegis.Enums;
+using Aegis.Models.License;
 using Aegis.Utilities;
 
 namespace Aegis.Tests;
@@ -55,7 +56,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, license.LicenseKey);
 
         // Assert
-        Assert.True(isValid);
+        Assert.Equal(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -71,23 +72,23 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateStandardLicense(licenseData, incorrectUserName, license.LicenseKey);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
-    public void ValidateStandardLicense_ReturnsFalse_ForIncorrectSerialNumber()
+    public void ValidateStandardLicense_ReturnsFalse_ForIncorrectLicenseKey()
     {
         // Arrange
         LoadSecretKeys();
         var license = GenerateStandardLicense();
         var licenseData = LicenseManager.SaveLicense(license);
-        const string incorrectSerialNumber = "IncorrectSerialNumber";
+        const string incorrectLicenseKey = "IncorrectLicenseKey";
 
         // Act
-        var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, incorrectSerialNumber);
+        var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, incorrectLicenseKey);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -103,7 +104,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateStandardLicense(licenseData, license.UserName, license.LicenseKey);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -118,7 +119,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateTrialLicense(licenseData);
 
         // Assert
-        Assert.True(isValid);
+        Assert.Equal(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -134,7 +135,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateTrialLicense(licenseData);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -149,7 +150,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateTrialLicense(licenseData);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -165,7 +166,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateNodeLockedLicense(licenseData, hardwareId);
 
         // Assert
-        Assert.True(isValid);
+        Assert.Equal(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -181,7 +182,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateNodeLockedLicense(licenseData, "IncorrectHardwareId");
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -198,7 +199,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateNodeLockedLicense(licenseData, hardwareId);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -213,7 +214,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateSubscriptionLicense(licenseData);
 
         // Assert
-        Assert.True(isValid);
+        Assert.Equal(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -229,7 +230,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateSubscriptionLicense(licenseData);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -244,7 +245,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateFloatingLicense(licenseData, license.UserName, license.MaxActiveUsersCount);
 
         // Assert
-        Assert.True(isValid);
+        Assert.Equal(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -259,7 +260,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateFloatingLicense(licenseData, "IncorrectUser", license.MaxActiveUsersCount);
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -274,7 +275,7 @@ public class LicenseValidatorTests
         var isValid = LicenseValidator.ValidateFloatingLicense(licenseData, license.UserName, 15); // Incorrect count
 
         // Assert
-        Assert.False(isValid);
+        Assert.NotEqual(LicenseStatus.Valid, isValid);
     }
 
     [Fact]
@@ -292,10 +293,10 @@ public class LicenseValidatorTests
         licenseData = (byte[])combineLicenseDataMethod?.Invoke(null, [hash, signature, encryptedData, aesKey])!;
 
         // Act
-        var isValid = LicenseValidator.VerifyLicenseData(licenseData, out _);
+        var result = LicenseValidator.VerifyLicenseData(licenseData);
 
         // Assert
-        Assert.False(isValid);
+        Assert.Equal(LicenseStatus.Invalid, result.Status);
     }
 
     [Fact]
@@ -313,9 +314,9 @@ public class LicenseValidatorTests
         licenseData = (byte[])combineLicenseDataMethod?.Invoke(null, [hash, signature, encryptedData, aesKey])!;
 
         // Act
-        var isValid = LicenseValidator.VerifyLicenseData(licenseData, out _);
+        var result = LicenseValidator.VerifyLicenseData(licenseData);
 
         // Assert
-        Assert.False(isValid);
+        Assert.Equal(LicenseStatus.Invalid, result.Status);
     }
 }

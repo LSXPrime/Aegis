@@ -1,7 +1,7 @@
 ﻿using System.Text.Json.Serialization;
 using Aegis.Enums;
 
-namespace Aegis.Models;
+namespace Aegis.Models.License;
 
 [JsonDerivedType(typeof(TrialLicense), "Trial")]
 public class TrialLicense : BaseLicense

@@ -1,5 +1,6 @@
 ﻿using Aegis.Exceptions;
 using Aegis.Models;
+using Aegis.Models.License;
 
 namespace Aegis;
 
@@ -26,14 +27,74 @@ public static class LicenseBuilder
     /// </summary>
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="featureName">The name of the feature.</param>
-    /// <param name="enabled">Whether the feature is enabled.</param>
+    /// <param name="featureValue">The value of the feature.</param>
     /// <returns>The modified license object.</returns>
-    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, bool enabled)
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, Feature featureValue)
     {
-        if (!baseLicense.Features.TryAdd(featureName, enabled))
-            baseLicense.Features[featureName] = enabled;
+        if (!baseLicense.Features.TryAdd(featureName, featureValue))
+            baseLicense.Features[featureName] = featureValue;
         return baseLicense;
     }
+
+    /// <summary>
+    ///     Adds or updates a feature boolean flag for the license.
+    /// </summary>
+    /// <param name="baseLicense">The license object to modify.</param>
+    /// <param name="featureName">The name of the feature.</param>
+    /// <param name="value">Whether the feature is enabled.</param>
+    /// <returns>The modified license object.</returns>
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, bool value) =>
+        baseLicense.WithFeature(featureName, Feature.FromBool(value));
+
+    /// <summary>
+    ///     Adds or updates a feature integer flag for the license.
+    /// </summary>
+    /// <param name="baseLicense">The license object to modify.</param>
+    /// <param name="featureName">The name of the feature.</param>
+    /// <param name="value">The value of the feature.</param>
+    /// <returns>The modified license object.</returns>
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, int value) =>
+        baseLicense.WithFeature(featureName, Feature.FromInt(value));
+
+    /// <summary>
+    ///     Adds or updates a feature float flag for the license.
+    /// </summary>
+    /// <param name="baseLicense">The license object to modify.</param>
+    /// <param name="featureName">The name of the feature.</param>
+    /// <param name="value">The value of the feature.</param>
+    /// <returns>The modified license object.</returns>
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, float value) =>
+        baseLicense.WithFeature(featureName, Feature.FromFloat(value));
+    
+    /// <summary>
+    ///     Adds or updates a feature string flag for the license.
+    /// </summary>
+    /// <param name="baseLicense">The license object to modify.</param>
+    /// <param name="featureName">The name of the feature.</param>
+    /// <param name="value">The value of the feature.</param>
+    /// <returns>The modified license object.</returns>
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, string value) =>
+        baseLicense.WithFeature(featureName, Feature.FromString(value));
+
+    /// <summary>
+    ///     Adds or updates a feature date flag for the license.
+    /// </summary>
+    /// <param name="baseLicense">The license object to modify.</param>
+    /// <param name="featureName">The name of the feature.</param>
+    /// <param name="value">The value of the feature.</param>
+    /// <returns>The modified license object.</returns>
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, DateTime value) =>
+        baseLicense.WithFeature(featureName, Feature.FromDateTime(value));
+
+    /// <summary>
+    ///     Adds or updates a feature byte array flag for the license.
+    /// </summary>
+    /// <param name="baseLicense">The license object to modify.</param>
+    /// <param name="featureName">The name of the feature.</param>
+    /// <param name="value">The value of the feature.</param>
+    /// <returns>The modified license object.</returns>
+    public static BaseLicense WithFeature(this BaseLicense baseLicense, string featureName, byte[] value) =>
+        baseLicense.WithFeature(featureName, Feature.FromByteArray(value));
 
     /// <summary>
     ///     Sets the feature flags for the license.
@@ -41,7 +102,7 @@ public static class LicenseBuilder
     /// <param name="baseLicense">The license object to modify.</param>
     /// <param name="features">A dictionary of feature names and their enabled status.</param>
     /// <returns>The modified license object.</returns>
-    public static BaseLicense WithFeatures(this BaseLicense baseLicense, Dictionary<string, bool> features)
+    public static BaseLicense WithFeatures(this BaseLicense baseLicense, Dictionary<string, Feature> features)
     {
         baseLicense.Features = features;
         return baseLicense;

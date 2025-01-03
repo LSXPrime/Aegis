@@ -6,7 +6,7 @@ using Aegis.Enums;
 [assembly: InternalsVisibleTo("Aegis.Server.Tests")]
 [assembly: InternalsVisibleTo("Aegis.Server.AspNetCore.Tests")]
 
-namespace Aegis.Models;
+namespace Aegis.Models.License;
 
 [JsonDerivedType(typeof(StandardLicense), "Standard")]
 [JsonDerivedType(typeof(TrialLicense), "Trial")]
@@ -26,7 +26,7 @@ public class BaseLicense
 
     [JsonInclude] public DateTime? ExpirationDate { get; protected internal set; }
 
-    [JsonInclude] public Dictionary<string, bool> Features { get; protected internal set; } = new();
+    [JsonInclude] public Dictionary<string, Feature> Features { get; protected internal set; } = new();
 
     [JsonInclude] public string Issuer { get; protected internal set; } = string.Empty;
 }

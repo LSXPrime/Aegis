@@ -1,5 +1,5 @@
 ﻿using Aegis.Enums;
-using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Utilities;
 
 namespace Aegis.Sample.Console;
@@ -58,24 +58,21 @@ public static class Program
                 return;
         }
 
+        var result = await LicenseManager.LoadLicenseAsync(licensePath);
+
+
         // 3. Load and Validate License
-        try
+        if (result is { Status: LicenseStatus.Valid, License: not null })
         {
-            license = await LicenseManager.LoadLicenseAsync(licensePath);
+            license = result.License;
         }
-        catch (Exception ex)
+        else
         {
-            System.Console.WriteLine($"Failed to load or validate license: {ex.Message}");
+            System.Console.WriteLine($"Failed to load or validate license: {result.Exception?.Message}");
             return;
         }
 
         // 4. Access License Information and Feature Flags
-        if (license == null)
-        {
-            System.Console.WriteLine("Invalid license.");
-            return;
-        }
-
         System.Console.WriteLine($"License Type: {license.Type}");
         System.Console.WriteLine($"License Key: {license.LicenseKey}");
         System.Console.WriteLine($"Issued On: {license.IssuedOn}");
@@ -85,7 +82,7 @@ public static class Program
         {
             case LicenseType.Standard or LicenseType.Trial:
                 // Access feature flags
-                System.Console.WriteLine(LicenseManager.IsFeatureEnabled("PremiumFeature")
+                System.Console.WriteLine(FeatureManager.IsFeatureEnabled("PremiumFeature")
                     ? "Premium Feature is enabled!"
                     : "Premium Feature is not enabled.");
                 break;

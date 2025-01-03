@@ -7,7 +7,7 @@ using System.Text;
 using System.Text.Json;
 using Aegis.Enums;
 using Aegis.Exceptions;
-using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Server.AspNetCore.Attributes;
 using Aegis.Server.AspNetCore.Controllers;
 using Aegis.Server.AspNetCore.Data.Context;
@@ -17,7 +17,6 @@ using Aegis.Server.AspNetCore.Middlewares;
 using Aegis.Server.AspNetCore.Services;
 using Aegis.Server.DTOs;
 using Aegis.Server.Entities;
-using Aegis.Server.Enums;
 using Aegis.Server.Exceptions;
 using Aegis.Server.Services;
 using Aegis.Utilities;
@@ -87,6 +86,7 @@ public class LicensesControllerTests
         _dbContext.Products.Add(new Product { ProductId = Guid.NewGuid(), ProductName = "Test Product" });
         _dbContext.Features.Add(new Feature { FeatureId = Guid.NewGuid(), FeatureName = "Feature 1" });
         _dbContext.Features.Add(new Feature { FeatureId = Guid.NewGuid(), FeatureName = "Feature 2" });
+        _dbContext.Features.Add(new Feature { FeatureId = Guid.NewGuid(), FeatureName = "Feature 3" });
         _dbContext.SaveChanges();
 
         // Link features to product
@@ -226,7 +226,7 @@ public class LicensesControllerTests
             Type = license.Type,
             IssuedOn = license.IssuedOn,
             ExpirationDate = license.ExpirationDate,
-            Features = license.LicenseFeatures.ToDictionary(lf => lf.Feature.FeatureName, lf => lf.IsEnabled),
+            Features = license.LicenseFeatures.ToDictionary(lf => lf.Feature.FeatureName, lf => new Models.Feature {Type = lf.Type, Data = lf.Data}),
             Issuer = license.Issuer
         };
         return license.Type switch
@@ -255,14 +255,19 @@ public class LicensesControllerTests
         // Arrange
         SetupUser("Admin"); // Set up user with Admin role
         var productId = _dbContext.Products.First().ProductId;
-        var featureId = _dbContext.Features.First().FeatureId;
+        var featureId = await _dbContext.Features.Select(f => f.FeatureId).ToArrayAsync();
         var request = new LicenseGenerationRequest
         {
             LicenseType = LicenseType.Standard,
             ExpirationDate = DateTime.UtcNow.AddDays(30),
             ProductId = productId,
             IssuedTo = "Test User",
-            FeatureIds = [featureId]
+            Features = new Dictionary<Guid, Models.Feature>
+            {
+                { featureId[0], Models.Feature.FromBool(true) },
+                { featureId[1], Models.Feature.FromInt(5) },
+                { featureId[2], Models.Feature.FromByteArray("Some data"u8.ToArray()) }
+            }
         };
 
 
@@ -282,14 +287,19 @@ public class LicensesControllerTests
         // Arrange
         SetupUser();
         var productId = _dbContext.Products.First().ProductId;
-        var featureId = _dbContext.Features.First().FeatureId;
+        var featureId = await _dbContext.Features.Select(f => f.FeatureId).ToArrayAsync();
         var request = new LicenseGenerationRequest
         {
             LicenseType = LicenseType.Standard,
             ExpirationDate = DateTime.UtcNow.AddDays(30),
             ProductId = productId,
             IssuedTo = "Test User",
-            FeatureIds = [featureId]
+            Features = new Dictionary<Guid, Models.Feature>
+            {
+                { featureId[0], Models.Feature.FromBool(true) },
+                { featureId[1], Models.Feature.FromInt(5) },
+                { featureId[2], Models.Feature.FromByteArray(Encoding.UTF8.GetBytes("Some data")) }
+            }
         };
 
         // Act
@@ -329,7 +339,10 @@ public class LicensesControllerTests
             ExpirationDate = DateTime.UtcNow.AddDays(30),
             ProductId = productId,
             IssuedTo = "Test User",
-            FeatureIds = [Guid.NewGuid()] // Invalid FeatureId
+            Features = new Dictionary<Guid, Models.Feature>
+            {
+                { Guid.Empty, Models.Feature.FromBool(true) }
+            }
         };
 
         // Act & Assert
@@ -370,7 +383,7 @@ public class LicensesControllerTests
         var validationParams = JsonSerializer.Serialize(new Dictionary<string, string>
         {
             { "UserName", license.IssuedTo },
-            { "SerialNumber", license.LicenseKey }
+            { "LicenseKey", license.LicenseKey }
         });
 
         // Create a mock IFormFile
@@ -400,7 +413,7 @@ public class LicensesControllerTests
         var validationParams = JsonSerializer.Serialize(new Dictionary<string, string>
         {
             { "UserName", license.IssuedTo },
-            { "SerialNumber", license.LicenseKey }
+            { "LicenseKey", license.LicenseKey }
         });
 
         // Create a mock IFormFile
@@ -597,7 +610,7 @@ public class LicensesControllerTests
         Assert.IsType<OkResult>(result);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
+        Assert.Equal(LicenseStatus.Valid, updatedLicense!.Status);
     }
 
     [Fact]
@@ -614,7 +627,7 @@ public class LicensesControllerTests
         Assert.IsType<OkResult>(result);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
+        Assert.Equal(LicenseStatus.Valid, updatedLicense!.Status);
     }
 
     [Fact]
@@ -632,7 +645,7 @@ public class LicensesControllerTests
         Assert.IsType<OkResult>(result);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
+        Assert.Equal(LicenseStatus.Valid, updatedLicense!.Status);
         Assert.Equal(hardwareId, updatedLicense.HardwareId);
     }
 
@@ -651,7 +664,7 @@ public class LicensesControllerTests
         Assert.IsType<OkResult>(result);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
+        Assert.Equal(LicenseStatus.Valid, updatedLicense!.Status);
         Assert.Equal(1, updatedLicense.ActiveUsersCount);
 
         var activation = await _dbContext.Activations.FirstOrDefaultAsync(a => a.LicenseId == license.LicenseId);
@@ -694,7 +707,7 @@ public class LicensesControllerTests
         Assert.IsType<OkResult>(result);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
+        Assert.Equal(LicenseStatus.Valid, updatedLicense!.Status);
         Assert.Equal(1, updatedLicense.ActiveUsersCount);
 
         var activation = await _dbContext.Activations.FirstOrDefaultAsync(a => a.LicenseId == license.LicenseId);
@@ -736,7 +749,7 @@ public class LicensesControllerTests
         Assert.IsType<OkResult>(result);
 
         var updatedLicense = await _dbContext.Licenses.FindAsync(license.LicenseId);
-        Assert.Equal(LicenseStatus.Active, updatedLicense!.Status);
+        Assert.Equal(LicenseStatus.Valid, updatedLicense!.Status);
     }
 
     [Fact]

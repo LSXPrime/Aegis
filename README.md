@@ -25,6 +25,10 @@ with your existing applications.
 - **Ease of Use:** Provides a fluent API for building and managing licenses, simplifying integration into existing
   projects.
 - **Built-in Exceptions:** Includes a set of exceptions for common licensing scenarios, simplifying error handling.
+- **Advanced Feature Management:**
+    - Centralized management of feature-related operations using the `FeatureManager`.
+    - Supports various data types for features (Boolean, Integer, Float, String, DateTime, ByteArray).
+    - Methods to check feature enablement & retrieve feature values of different types
 
 ### Aegis.Server - Backend for Floating and Concurrent Licenses
 
@@ -91,12 +95,13 @@ adapt the provided code to your specific needs.
    **Standard License:**
    ```C#
    using Aegis;
+   using Aegis.Models;
 
    var license = LicenseGenerator.GenerateStandardLicense("John Doe")
        .WithLicenseKey("SD2D-35G9-1502-X3DG-16VI-ELN2")
        .WithIssuer("Aegis Software")
-       .WithFeature("Feature1", true)
-       .WithFeature("Feature2", false)
+       .WithFeature("Feature1", Feature.FromBool(true))
+       .WithFeature("Feature2", Feature.FromString("Enabled"))
        .WithExpiryDate(DateTime.UtcNow.AddDays(30))
        .SaveLicense(@"C:\Path\To\license.bin"); 
    ```
@@ -105,7 +110,7 @@ adapt the provided code to your specific needs.
    ```C#
    var license = LicenseGenerator.GenerateTrialLicense(TimeSpan.FromDays(14))
        .WithIssuer("Aegis Software")
-       .WithFeature("AllFeatures", true) 
+       .WithFeature("AllFeatures", Feature.FromBool(true))
        .SaveLicense(@"C:\Path\To\trial_license.bin");
    ```
 
@@ -121,7 +126,7 @@ adapt the provided code to your specific needs.
    ```C#
    var license = LicenseGenerator.GenerateSubscriptionLicense("Jane Smith", TimeSpan.FromDays(365))
        .WithIssuer("Aegis Software")
-       .WithFeature("PremiumFeatures", true) 
+       .WithFeature("PremiumFeatures", Feature.FromBool(true))
        .SaveLicense(@"C:\Path\To\subscription_license.bin");
    ```
 
@@ -144,12 +149,19 @@ adapt the provided code to your specific needs.
    ```C#
    try
    {
-       var loadedLicense = await LicenseManager.LoadLicenseAsync(@"C:\Path\To\license.bin"); 
-
-       // License loaded successfully, you can access its properties:
-       Console.WriteLine("License Type: " + loadedLicense.Type);
-       Console.WriteLine("Expiration Date: " + loadedLicense.ExpirationDate);
-       // ...
+        var loadedLicenseResult = await LicenseManager.LoadLicenseAsync(@"C:\Path\To\license.bin");
+        if (loadedLicenseResult.Status == Aegis.Enums.LicenseStatus.Valid)
+        {
+            var loadedLicense = loadedLicenseResult.License;
+            // License loaded successfully, you can access its properties:
+            Console.WriteLine("License Type: " + loadedLicense!.Type);
+            Console.WriteLine("Expiration Date: " + loadedLicense.ExpirationDate);
+        }
+        else
+        {
+            // Handle invalid license status
+            Console.WriteLine($"License status is: {loadedLicenseResult.Status}");
+        }
    }
    catch (LicenseValidationException ex)
    {
@@ -161,21 +173,6 @@ adapt the provided code to your specific needs.
        // Handle other errors (e.g., file not found, invalid format, etc.)
        Console.WriteLine("Error Loading License: " + ex.Message);
    } 
-   ```
-
-6. **Check Feature Status:**
-   ```C#
-   if (LicenseManager.IsFeatureEnabled("Feature1"))
-   {
-       // Allow access to Feature1
-   }
-   else
-   {
-       // Feature1 is not enabled, handle accordingly (e.g., disable UI elements, show a message)
-   }
-
-   // Or throw an exception if the feature is not allowed:
-   LicenseManager.ThrowIfNotAllowed("Feature1"); 
    ```
 
 #### Aegis.Server NuGet Package
@@ -269,9 +266,101 @@ adapt the provided code to your specific needs.
    Aegis.Server monitors heartbeats and will automatically disconnect users if a heartbeat is not received within a
    specified timeout period.
 
+### Feature Usage
+
+Aegis includes `FeatureManager` to control access to specific features within your application based on the loaded license. Here's how to use it:
+
+**Defining Features in Licenses**
+
+When generating licenses using `LicenseBuilder`, you can define features and their associated values:
+
+```csharp
+using Aegis;
+using Aegis.Models;
+
+// ...
+
+var license = LicenseGenerator.GenerateStandardLicense("John Doe")
+    .WithIssuer("Aegis Software")
+    .WithFeature("BasicReporting", Feature.FromBool(true)) // Boolean feature
+    .WithFeature("NumberOfUsers", Feature.FromInt(5)) // Integer feature
+    .WithFeature("SupportLevel", Feature.FromString("Premium")) // String feature
+    .WithFeature("DataLimit", Feature.FromFloat(10.5f)) // Float feature
+    .WithFeature("Expiry", Feature.FromDateTime(DateTime.UtcNow.AddDays(30))) // DateTime feature
+    .WithFeature("CustomData", Feature.FromByteArray(new byte[] { 0x01, 0x02, 0x03 })) // Byte array feature
+    .SaveLicense(@"C:\Path\To\license.bin");
+```
+
+**Checking if a Feature is Enabled**
+
+Use the `FeatureManager.IsFeatureEnabled` method to check if a feature is enabled in the currently loaded license:
+
+```csharp
+if (FeatureManager.IsFeatureEnabled("BasicReporting"))
+{
+    // Allow access to basic reporting functionality
+    Console.WriteLine("Basic reporting is enabled.");
+}
+else
+{
+    // Feature is not enabled
+    Console.WriteLine("Basic reporting is not enabled.");
+}
+```
+
+**Retrieving Feature Values**
+
+The `FeatureManager` provides methods to retrieve feature values of different types:
+
+```csharp
+// Get an integer feature value:
+int numberOfUsers = FeatureManager.GetFeatureInt("NumberOfUsers");
+Console.WriteLine($"Number of users allowed: {numberOfUsers}");
+
+// Get a string feature value:
+string supportLevel = FeatureManager.GetFeatureString("SupportLevel");
+Console.WriteLine($"Support level: {supportLevel}");
+
+// Get a float feature value:
+float dataLimit = FeatureManager.GetFeatureFloat("DataLimit");
+Console.WriteLine($"Data Limit: {dataLimit}");
+
+// Get a DateTime feature value:
+DateTime expiry = FeatureManager.GetFeatureDateTime("Expiry");
+Console.WriteLine($"Feature Expiry: {expiry}");
+
+// Get a byte array feature value:
+byte[] customData = FeatureManager.GetFeatureByteArray("CustomData");
+Console.WriteLine($"Custom Data Length: {customData.Length}");
+```
+
+**Enforcing Feature Restrictions**
+
+Use `FeatureManager.ThrowIfNotAllowed` to throw a `FeatureNotLicensedException` if a feature is not enabled:
+
+```csharp
+try
+{
+    FeatureManager.ThrowIfNotAllowed("AdvancedAnalytics");
+    // Code that requires the "AdvancedAnalytics" feature
+    Console.WriteLine("Advanced analytics is available.");
+}
+catch (FeatureNotLicensedException ex)
+{
+    // Handle the case where the feature is not licensed
+    Console.WriteLine($"Error: {ex.Message}"); // Output: Error: The feature 'AdvancedAnalytics' is not included in your license.
+}
+```
+
+**Important:**
+
+-   The `FeatureManager` relies on the currently loaded license. Make sure to load a license using `LicenseManager.LoadLicenseAsync` before using `FeatureManager`.
+-   Feature names are case-sensitive.
+-   If a feature is not defined in the license, `IsFeatureEnabled` will return `false`, and the type-specific retrieval methods will return default values (0 for numeric types, null for strings, default `DateTime`, and empty `byte[]`).
+
 ### Custom Validation Rules
 
-Aegis allows you to implement custom validation rules to enforce specific licensing requirements beyond the built-in validation logic. 
+Aegis allows you to implement custom validation rules to enforce specific licensing requirements beyond the built-in validation logic.
 This provides greater flexibility and control over your licensing system.
 
 1. **Implementing a Custom Rule**
@@ -280,24 +369,24 @@ This provides greater flexibility and control over your licensing system.
 
     ```csharp
     using Aegis.Interfaces;
-    using Aegis.Models;
+    using Aegis.Models.License;
     using Aegis.Models.Utils;
     
     public class MyCustomRule : IValidationRule
     {
-        public LicenseValidationResult<T> Validate<T>(T license, Dictionary<string, string?>? parameters) where T : BaseLicense
+        public LicenseLoadResult<T> Validate<T>(T license, Dictionary<string, string?>? parameters) where T : BaseLicense
         {
             // Your custom validation logic here.
             // Access license properties, parameters, external resources, etc.
     
             if (/* Validation succeeds */)
             {
-                return new LicenseValidationResult<T>(true, license);
+                return new LicenseLoadResult<T>(Aegis.Enums.LicenseStatus.Valid, license);
             }
             else
             {
                 // Provide an appropriate exception for validation failures.
-                return new LicenseValidationResult<T>(false, null, new LicenseValidationException("Custom validation failed.")); 
+                return new LicenseLoadResult<T>(Aegis.Enums.LicenseStatus.Invalid, null, new LicenseValidationException("Custom validation failed.")); 
             }
         }
     }
@@ -318,16 +407,16 @@ This provides greater flexibility and control over your licensing system.
 
     ```csharp
     using Aegis.Interfaces;
-    using Aegis.Models;
+    using Aegis.Models.License;
     using Aegis.Models.Utils;
     using Aegis.Utilities;
     
     public class AdvancedHardwareRule : IValidationRule
     {
-        public LicenseValidationResult<T> Validate<T>(T license, Dictionary<string, string?>? parameters) where T : BaseLicense
+        public LicenseLoadResult<T> Validate<T>(T license, Dictionary<string, string?>? parameters) where T : BaseLicense
         {
             if (license is not NodeLockedLicense nodeLockedLicense)
-                return new LicenseValidationResult<T>(true, license);
+                return new LicenseLoadResult<T>(Aegis.Enums.LicenseStatus.Valid, license);
     
             // Implement your logic to combine and validate multiple hardware factors
             // You can use HardwareUtils.GetHardwareId() as a starting point and add
@@ -336,10 +425,10 @@ This provides greater flexibility and control over your licensing system.
     
             if (combinedHardwareId != nodeLockedLicense.HardwareId)
             {
-                return new LicenseValidationResult<T>(false, null, new HardwareMismatchException("Hardware mismatch detected."));
+                return new LicenseLoadResult<T>(Aegis.Enums.LicenseStatus.Invalid, null, new HardwareMismatchException("Hardware mismatch detected."));
             }
     
-            return new LicenseValidationResult<T>(true, license);
+            return new LicenseLoadResult<T>(Aegis.Enums.LicenseStatus.Valid, license);
         }
     
         // Replace with your actual implementation to generate a combined hardware ID.
@@ -408,7 +497,7 @@ Aegis uses a `JsonLicenseSerializer` by default. To implement a custom serialize
 
    ```csharp
    using Aegis.Interfaces;
-   using Aegis.Models;
+   using Aegis.Models.License;
 
    public class MyCustomSerializer : ILicenseSerializer
    {
@@ -464,7 +553,7 @@ application) and the Aegis.Server backend service.
     - **Offline Validation:** The license is validated locally using cryptographic signatures, checksums, and any registered custom validation rules.
     - **Online Validation:** For floating and concurrent licenses, the client library connects to the
       Aegis.Server.AspNetCore to validate the license and manage activations.
-- **Feature Access:** The application checks for enabled features using `LicenseManager.IsFeatureEnabled()`.
+- **Feature Access:** The application checks for enabled features using `FeatureManager.IsFeatureEnabled()`.
 - **Heartbeat (Concurrent Licenses):** For concurrent licenses, the client library periodically sends heartbeat requests
   to the Aegis.Server.AspNetCore to maintain an active connection.
 

@@ -1,8 +1,14 @@
-﻿namespace Aegis.Server.Entities;
+﻿using Aegis.Models;
 
-public class LicenseFeature
+namespace Aegis.Server.Entities;
+
+public class LicenseFeature : Aegis.Models.Feature
 {
     public bool IsEnabled { get; set; }
+    
+    // Overriding properties to allow mutability
+    public new FeatureValueType Type { get; set; } = FeatureValueType.Boolean;
+    public new byte[]? Data { get; set; }
 
     // Navigation properties
     public Guid ProductId { get; set; }

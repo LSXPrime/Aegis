@@ -2,7 +2,7 @@
 using System.Text.Json;
 using Aegis.Enums;
 using Aegis.Exceptions;
-using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Utilities;
 
 namespace Aegis.Tests;
@@ -108,9 +108,10 @@ public class LicenseManagerTests
         var loadedLicense = await LicenseManager.LoadLicenseAsync(filePath);
 
         // Assert
-        Assert.NotNull(loadedLicense);
-        Assert.Equal(license.LicenseKey, loadedLicense.LicenseKey);
-        Assert.Equal(license.Type, loadedLicense.Type);
+        Assert.Equal(LicenseStatus.Valid, loadedLicense.Status);
+        Assert.NotNull(loadedLicense.License);
+        Assert.Equal(license.LicenseKey, loadedLicense.License.LicenseKey);
+        Assert.Equal(license.Type, loadedLicense.License.Type);
 
         // Clean up
         File.Delete(filePath);
@@ -157,77 +158,6 @@ public class LicenseManagerTests
         await Assert.ThrowsAsync<DirectoryNotFoundException>(async () =>
             await LicenseManager.LoadLicenseAsync(filePath));
     }
-
-    // IsFeatureEnabled Tests
-
-    [Fact]
-    public void IsFeatureEnabled_ReturnsCorrectValue()
-    {
-        // Arrange
-        var license = GenerateLicense();
-        license.Features.Add("Feature1", true);
-        SetLicense(license);
-
-        // Act
-        var isEnabled = LicenseManager.IsFeatureEnabled("Feature1");
-
-        // Assert
-        Assert.True(isEnabled);
-    }
-
-    [Fact]
-    public void IsFeatureEnabled_ReturnsFalseForNonExistingFeature()
-    {
-        // Arrange
-        var license = GenerateLicense();
-        SetLicense(license);
-
-        // Act
-        var isEnabled = LicenseManager.IsFeatureEnabled("NonExistingFeature");
-
-        // Assert
-        Assert.False(isEnabled);
-    }
-
-    [Fact]
-    public void IsFeatureEnabled_ReturnsFalseForDisabledFeature()
-    {
-        // Arrange
-        var license = GenerateLicense();
-        license.Features.Add("Feature1", false);
-        SetLicense(license);
-
-        // Act
-        var isEnabled = LicenseManager.IsFeatureEnabled("Feature1");
-
-        // Assert
-        Assert.False(isEnabled);
-    }
-
-    [Fact]
-    public void ThrowIfNotAllowed_ThrowsExceptionForDisabledFeature()
-    {
-        // Arrange
-        var license = GenerateLicense();
-        license.Features.Add("Feature1", false);
-        SetLicense(license);
-
-        // Act & Assert
-        Assert.Throws<FeatureNotLicensedException>(() => LicenseManager.ThrowIfNotAllowed("Feature1"));
-    }
-
-    [Fact]
-    public void ThrowIfNotAllowed_DoesNotThrowExceptionForEnabledFeature()
-    {
-        // Arrange
-        var license = GenerateLicense();
-        license.Features.Add("Feature1", true);
-        SetLicense(license);
-
-        // Act & Assert (no exception should be thrown)
-        LicenseManager.ThrowIfNotAllowed("Feature1");
-    }
-
     // SetServerBaseEndpoint Tests
 
     [Fact]

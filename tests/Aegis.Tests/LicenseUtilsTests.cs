@@ -1,5 +1,5 @@
 ﻿using Aegis.Exceptions;
-using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Models.Utils;
 using Aegis.Utilities;
 using Microsoft.Extensions.Configuration;

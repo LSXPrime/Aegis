@@ -1,5 +1,5 @@
 ﻿using Aegis.Interfaces;
-using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Utilities;
 
 namespace Aegis;

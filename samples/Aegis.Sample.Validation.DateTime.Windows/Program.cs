@@ -1,5 +1,6 @@
-﻿using Aegis.Exceptions;
-using Aegis.Models;
+﻿using Aegis.Enums;
+using Aegis.Exceptions;
+using Aegis.Models.License;
 using Aegis.Utilities;
 
 namespace Aegis.Sample.Validation.DateTime.Windows;
@@ -42,15 +43,10 @@ internal static class Program
 
     private static async Task<BaseLicense?> LoadLicense(string licensePath)
     {
-        try
-        {
-            return await LicenseManager.LoadLicenseAsync(licensePath);
-        }
-        catch
-        {
-            Console.WriteLine("License Loading failed");
-        }
-
-        return null;
+        var license = await LicenseManager.LoadLicenseAsync(licensePath);
+        if (license.Status != LicenseStatus.Valid)
+            Console.WriteLine($"Failed to load license. Status: {license.Status}" + (license.Exception != null ? $" - Exception: {license.Exception.Message}" : ""));
+        
+        return license.License;
     }
 }

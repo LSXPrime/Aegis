@@ -1,4 +1,4 @@
-﻿using Aegis.Models;
+﻿using Aegis.Models.License;
 
 namespace Aegis.Interfaces;
 

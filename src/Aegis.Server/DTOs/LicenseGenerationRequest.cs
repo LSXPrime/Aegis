@@ -1,4 +1,5 @@
 ﻿using Aegis.Enums;
+using Aegis.Models;
 
 namespace Aegis.Server.DTOs;
 
@@ -11,5 +12,6 @@ public class LicenseGenerationRequest
     public int? MaxActiveUsersCount { get; }
     public string? HardwareId { get; }
     public TimeSpan? SubscriptionDuration { get; }
-    public Guid[] FeatureIds { get; init; } = [];
+    public Dictionary<Guid, Feature> Features { get; init; } = [];
+
 }

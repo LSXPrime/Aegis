@@ -1,12 +1,12 @@
 ﻿using Aegis.Enums;
 using Aegis.Exceptions;
-using Aegis.Models;
+using Aegis.Models.License;
 using Aegis.Server.Data;
 using Aegis.Server.DTOs;
 using Aegis.Server.Entities;
-using Aegis.Server.Enums;
 using Aegis.Server.Exceptions;
 using Microsoft.EntityFrameworkCore;
+using Feature = Aegis.Models.Feature;
 
 namespace Aegis.Server.Services;
 
@@ -31,7 +31,7 @@ public class LicenseService(AegisDbContext dbContext)
         await AddFeaturesToLicenseAsync(license, request);
 
         // 4. Save to the database 
-        dbContext.Licenses.Add(license);
+        await dbContext.Licenses.AddAsync(license);
         await dbContext.SaveChangesAsync();
 
 
@@ -72,17 +72,12 @@ public class LicenseService(AegisDbContext dbContext)
 
         if (licenseFile != null)
         {
-            BaseLicense? loadedLicense;
+            var loadResult = await LicenseManager.LoadLicenseAsync(licenseFile, ValidationMode.Offline, validationParams);
+            if (loadResult.Status != LicenseStatus.Valid)
+                return new LicenseValidationResult(false, null,
+                    loadResult.Exception ?? new LicenseValidationException(loadResult.Status.ToString()));
 
-            try
-            {
-                loadedLicense =
-                    await LicenseManager.LoadLicenseAsync(licenseFile, ValidationMode.Offline, validationParams);
-            }
-            catch (Exception e)
-            {
-                return new LicenseValidationResult(false, null, e);
-            }
+            var loadedLicense = loadResult.License;
 
             if (loadedLicense == null)
                 return new LicenseValidationResult(false, null,
@@ -107,11 +102,11 @@ public class LicenseService(AegisDbContext dbContext)
                     break;
                 case StandardLicense sl:
                     if (validationParams != null &&
-                        ((validationParams.TryGetValue("SerialNumber", out var serialNumber) &&
-                          sl.LicenseKey != serialNumber) ||
+                        ((validationParams.TryGetValue("LicenseKey", out var licenseKey2) &&
+                          sl.LicenseKey != licenseKey2) ||
                          (validationParams.TryGetValue("UserName", out var userName) && sl.UserName != userName)))
                     {
-                        var message = validationParams.ContainsKey("SerialNumber")
+                        var message = validationParams.ContainsKey("LicenseKey")
                             ? "License serial number does not match the requested serial number."
                             : "License user name does not match the requested user name.";
 
@@ -158,7 +153,7 @@ public class LicenseService(AegisDbContext dbContext)
             case LicenseType.Standard:
                 break;
             case LicenseType.NodeLocked:
-                license.Status = LicenseStatus.Active;
+                license.Status = LicenseStatus.Valid;
                 license.HardwareId = hardwareId!;
                 break;
             case LicenseType.Concurrent:
@@ -238,7 +233,7 @@ public class LicenseService(AegisDbContext dbContext)
                 return new LicenseActivationResult(false, new InvalidLicenseFormatException("Invalid license type."));
         }
 
-        license.Status = LicenseStatus.Active;
+        license.Status = LicenseStatus.Valid;
         dbContext.Licenses.Update(license);
         await dbContext.SaveChangesAsync();
         return new LicenseActivationResult(true);
@@ -348,7 +343,7 @@ public class LicenseService(AegisDbContext dbContext)
 
 
         license.SubscriptionExpiryDate = newExpirationDate;
-        license.Status = LicenseStatus.Active;
+        license.Status = LicenseStatus.Valid;
         dbContext.Licenses.Update(license);
         await dbContext.SaveChangesAsync();
 
@@ -384,8 +379,8 @@ public class LicenseService(AegisDbContext dbContext)
         if (!await dbContext.Products.AnyAsync(p => p.ProductId == request.ProductId))
             throw new NotFoundException("Product not found");
 
-        if (request.FeatureIds.Length != 0 &&
-            !await dbContext.Features.AnyAsync(f => request.FeatureIds.Contains(f.FeatureId)))
+        if (request.Features.Count != 0 &&
+            !await dbContext.Features.AnyAsync(f => request.Features.Keys.Contains(f.FeatureId)))
             throw new NotFoundException("Feature not found");
 
         if (request.ExpirationDate.HasValue && request.ExpirationDate.Value < DateTime.UtcNow)
@@ -410,25 +405,26 @@ public class LicenseService(AegisDbContext dbContext)
 
     private async Task AddFeaturesToLicenseAsync(License license, LicenseGenerationRequest request)
     {
-        if (request.FeatureIds.Length == 0)
-            return;
+        if (request.Features.Count == 0) return;
 
-        foreach (var featureId in request.FeatureIds)
+        foreach (var featureData in request.Features)
         {
             var licenseFeature = await dbContext.LicenseFeatures
-                .FirstOrDefaultAsync(lf => lf.ProductId == request.ProductId && lf.FeatureId == featureId);
+                .FirstOrDefaultAsync(lf => lf.ProductId == request.ProductId && lf.FeatureId == featureData.Key);
 
             if (licenseFeature == null)
             {
                 var product = await dbContext.Products.FirstAsync(p => p.ProductId == request.ProductId);
-                var feature = await dbContext.Features.FirstAsync(f => f.FeatureId == featureId);
+                var feature = await dbContext.Features.FirstAsync(f => f.FeatureId == featureData.Key);
 
                 licenseFeature = new LicenseFeature
                 {
                     Product = product,
                     Feature = feature,
                     License = license,
-                    IsEnabled = true
+                    IsEnabled = true,
+                    Type = featureData.Value.Type,
+                    Data = featureData.Value.Data
                 };
 
                 dbContext.LicenseFeatures.Add(licenseFeature);
@@ -437,6 +433,8 @@ public class LicenseService(AegisDbContext dbContext)
             {
                 licenseFeature.IsEnabled = true;
                 licenseFeature.License = license;
+                licenseFeature.Type = featureData.Value.Type;
+                licenseFeature.Data = featureData.Value.Data;
             }
         }
     }
@@ -471,7 +469,7 @@ public class LicenseService(AegisDbContext dbContext)
             Type = license.Type,
             IssuedOn = license.IssuedOn,
             ExpirationDate = license.ExpirationDate,
-            Features = license.LicenseFeatures.ToDictionary(lf => lf.Feature.FeatureName, lf => lf.IsEnabled),
+            Features = license.LicenseFeatures.ToDictionary(lf => lf.Feature.FeatureName, lf => new Feature {Type = lf.Type, Data = lf.Data}),
             Issuer = license.Issuer
         };
     }

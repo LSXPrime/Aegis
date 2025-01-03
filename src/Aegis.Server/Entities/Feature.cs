@@ -1,5 +1,8 @@
-﻿namespace Aegis.Server.Entities;
+﻿using Microsoft.EntityFrameworkCore;
 
+namespace Aegis.Server.Entities;
+
+[PrimaryKey(nameof(FeatureId))]
 public class Feature
 {
     public Guid FeatureId { get; set; } = Guid.NewGuid();

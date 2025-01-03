@@ -1,5 +1,5 @@
 ﻿using Aegis.Enums;
-using Aegis.Models;
+using Aegis.Models.License;
 
 namespace Aegis.Tests;
 
